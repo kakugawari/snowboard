@@ -6,13 +6,12 @@
     </linearGradient>
   </defs>
   <rect width="512" height="512" fill="url(#sky)"/>
-  <g transform="translate(256 256) scale(0.78) translate(-256 -256)">
   <!-- 遠景の雪山 -->
   <path d="M0 330 L110 200 L190 300 L260 220 L360 340 L440 250 L512 330 L512 512 L0 512 Z" fill="#7d93b4"/>
   <path d="M110 200 L150 250 L128 258 L96 246 Z M260 220 L296 262 L272 268 L238 254 Z" fill="#c9d8ea"/>
   <path d="M0 350 Q256 300 512 356 L512 512 L0 512 Z" fill="#f4f8fd"/>
   <!-- ぬいぐるみのクマ -->
-  <g transform="translate(256 322)">
+  <g transform="translate(256 256) scale(0.8) translate(-256 -256)"><g transform="translate(256 322)">
     <ellipse cx="0" cy="120" rx="112" ry="22" fill="#bcd2e8" opacity="0.55"/>
     <!-- ボード -->
     <rect x="-104" y="86" width="208" height="34" rx="17" fill="#2f57ac"/>
@@ -29,24 +28,23 @@
     <ellipse cx="0" cy="-38" rx="50" ry="21" fill="#e2483f"/>
     <path d="M-14 -46 Q-92 -66 -128 -14 Q-84 -20 -12 -24 Z" fill="#b8352d"/>
     <!-- 頭 -->
-    <circle cx="-58" cy="-142" r="26" fill="#cfa176"/>
-    <circle cx="58" cy="-142" r="26" fill="#cfa176"/>
-    <circle cx="-58" cy="-142" r="13" fill="#f0aeae"/>
-    <circle cx="58" cy="-142" r="13" fill="#f0aeae"/>
+    <circle cx="-58" cy="-152" r="26" fill="#cfa176"/>
+    <circle cx="58" cy="-152" r="26" fill="#cfa176"/>
+    <circle cx="-58" cy="-152" r="13" fill="#f0aeae"/>
+    <circle cx="58" cy="-152" r="13" fill="#f0aeae"/>
     <circle cx="0" cy="-96" r="74" fill="#e6bd91"/>
     <ellipse cx="0" cy="-70" rx="40" ry="29" fill="#f8ecd9"/>
     <path d="M-11 -84 L11 -84 L0 -70 Z" fill="#5b4034"/>
     <path d="M0 -70 L0 -60 M0 -60 Q-12 -48 -21 -60 M0 -60 Q12 -48 21 -60" stroke="#5b4034" stroke-width="5" fill="none" stroke-linecap="round"/>
-    <ellipse cx="-31" cy="-104" rx="11" ry="13" fill="#5b4034"/>
-    <ellipse cx="31" cy="-104" rx="11" ry="13" fill="#5b4034"/>
-    <circle cx="-35" cy="-109" r="4.4" fill="#fff"/>
-    <circle cx="27" cy="-109" r="4.4" fill="#fff"/>
+    <ellipse cx="-31" cy="-99" rx="11" ry="13" fill="#5b4034"/>
+    <ellipse cx="31" cy="-99" rx="11" ry="13" fill="#5b4034"/>
+    <circle cx="-35" cy="-104" r="4.4" fill="#fff"/>
+    <circle cx="27" cy="-104" r="4.4" fill="#fff"/>
     <ellipse cx="-50" cy="-80" rx="14" ry="9" fill="#f09a9a" opacity="0.6"/>
     <ellipse cx="50" cy="-80" rx="14" ry="9" fill="#f09a9a" opacity="0.6"/>
     <!-- ニット帽 -->
-    <path d="M-76 -104 A76 76 0 0 1 76 -104 Z" fill="#6fcbbd"/>
-    <rect x="-77" y="-118" width="154" height="26" rx="13" fill="#4fae9f"/>
-    <circle cx="-26" cy="-176" r="22" fill="#fdf6ea"/>
+    <path d="M-76 -118 A76 76 0 0 1 76 -118 Z" fill="#6fcbbd"/>
+    <rect x="-77" y="-140" width="154" height="26" rx="13" fill="#4fae9f"/>
+    <circle cx="-26" cy="-188" r="22" fill="#fdf6ea"/>
   </g>
-</g>
-</svg>
+</g></svg>
