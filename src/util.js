@@ -86,8 +86,26 @@
 
   const fmt = (n) => Math.floor(n).toLocaleString('ja-JP');
 
+  /* localStorage は埋め込み枠やプライベートモードで例外を投げることがある。
+     読めない環境ではメモリ上に持って、記録が残らないだけにする。 */
+  const memory = new Map();
+  const store = {
+    get(key, fallback) {
+      try {
+        const v = localStorage.getItem(key);
+        return v === null ? fallback : v;
+      } catch (e) {
+        return memory.has(key) ? memory.get(key) : fallback;
+      }
+    },
+    set(key, value) {
+      memory.set(key, String(value));
+      try { localStorage.setItem(key, String(value)); } catch (e) { /* 保存できなくても遊べる */ }
+    },
+  };
+
   SB.util = {
     clamp, lerp, smoothstep, easeOutCubic, easeOutBack, damp,
-    makeRng, mixHex, shade, rgba, roundRect, ellipse, fmt, TAU: Math.PI * 2,
+    makeRng, mixHex, shade, rgba, roundRect, ellipse, fmt, store, TAU: Math.PI * 2,
   };
 })(window);

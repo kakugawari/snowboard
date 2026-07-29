@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
   const SB = global.SB;
-  const { fmt, clamp } = SB.util;
+  const { fmt, clamp, store } = SB.util;
 
   const $ = (id) => document.getElementById(id);
 
@@ -19,8 +19,8 @@
 
   /* --- UI ------------------------------------------------------------ */
   const ui = {
-    haptics: localStorage.getItem('sb_haptics') !== '0',
-    sound: localStorage.getItem('sb_sound') !== '0',
+    haptics: store.get('sb_haptics', '1') !== '0',
+    sound: store.get('sb_sound', '1') !== '0',
     _lastCombo: 0,
     _lastHearts: -1,
 
@@ -113,7 +113,7 @@
   const soundBtn = $('btn-sound');
   tap(soundBtn, () => {
     ui.sound = !ui.sound;
-    localStorage.setItem('sb_sound', ui.sound ? '1' : '0');
+    store.set('sb_sound', ui.sound ? '1' : '0');
     soundBtn.classList.toggle('on', ui.sound);
     SB.audio.setEnabled(ui.sound);
   });
@@ -122,7 +122,7 @@
   const hapticsBtn = $('btn-haptics');
   tap(hapticsBtn, () => {
     ui.haptics = !ui.haptics;
-    localStorage.setItem('sb_haptics', ui.haptics ? '1' : '0');
+    store.set('sb_haptics', ui.haptics ? '1' : '0');
     hapticsBtn.classList.toggle('on', ui.haptics);
   });
   hapticsBtn.classList.toggle('on', ui.haptics);

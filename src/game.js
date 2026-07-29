@@ -2,7 +2,7 @@
 (function (global) {
   'use strict';
   const SB = global.SB || (global.SB = {});
-  const { clamp, lerp, damp, easeOutCubic, fmt, TAU } = SB.util;
+  const { clamp, lerp, damp, easeOutCubic, fmt, store, TAU } = SB.util;
   const C = SB.C;
 
   const CAM_BACK = 6.4;    // カメラは何m後ろか
@@ -19,8 +19,8 @@
       this.ui = ui;
       this.state = 'title';
       this.t = 0;
-      this.best = Number(localStorage.getItem('sb_best') || 0);
-      this.bestDist = Number(localStorage.getItem('sb_bestdist') || 0);
+      this.best = Number(store.get('sb_best', 0));
+      this.bestDist = Number(store.get('sb_bestdist', 0));
 
       this.world = new SB.World();
       this.flakes = [];
@@ -78,8 +78,8 @@
     gameOver() {
       this.state = 'over';
       const isBest = this.score > this.best;
-      if (isBest) { this.best = this.score; localStorage.setItem('sb_best', String(Math.floor(this.score))); }
-      if (this.distance > this.bestDist) { this.bestDist = this.distance; localStorage.setItem('sb_bestdist', String(Math.floor(this.distance))); }
+      if (isBest) { this.best = this.score; store.set('sb_best', Math.floor(this.score)); }
+      if (this.distance > this.bestDist) { this.bestDist = this.distance; store.set('sb_bestdist', Math.floor(this.distance)); }
       this.ui.showResult({
         score: this.score, distance: this.distance, bells: this.bells,
         tricks: this.tricks, best: this.best, isBest,

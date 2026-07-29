@@ -10,6 +10,9 @@
   --accent-d: #2f57ac;
   --warm: #ffd25e;
   --pink: #ff8fb1;
+  /* HUD の基準寸法。プレイ画面（キャンバス）と同じ土台で拡縮させることで、
+     埋め込み先のレイアウト幅が想定と違っても比率が崩れない */
+  --ui: min(100vw, 100vh, 760px);
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --safe-l: env(safe-area-inset-left, 0px);
@@ -68,7 +71,7 @@ html, body {
 .hud-row { display: flex; justify-content: space-between; align-items: flex-start; }
 
 .score {
-  font-size: clamp(28px, 7vw, 44px);
+  font-size: calc(var(--ui) * 0.075);
   font-weight: 900;
   color: #fff;
   line-height: 1;
@@ -76,7 +79,7 @@ html, body {
   font-variant-numeric: tabular-nums;
 }
 .hud-left .sub {
-  font-size: clamp(12px, 3.4vw, 16px);
+  font-size: calc(var(--ui) * 0.034);
   font-weight: 700;
   color: rgba(255, 255, 255, 0.9);
   margin-top: 3px;
@@ -86,7 +89,8 @@ html, body {
 
 .icon-btn {
   pointer-events: auto;
-  width: 44px; height: 44px;
+  width: max(44px, calc(var(--ui) * 0.105));
+  height: max(44px, calc(var(--ui) * 0.105));
   border-radius: 50%;
   border: none;
   background: rgba(255, 255, 255, 0.28);
@@ -99,13 +103,13 @@ html, body {
 }
 .icon-btn:active { transform: scale(0.94); }
 
-.hearts { display: flex; gap: 4px; font-size: 20px; line-height: 1; }
+.hearts { display: flex; gap: 4px; font-size: calc(var(--ui) * 0.052); line-height: 1; }
 .hearts span { filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25)); transition: transform .2s, opacity .2s; }
 .hearts span.lost { opacity: 0.28; transform: scale(0.8); }
 
 .combo {
   align-self: center;
-  font-size: clamp(20px, 6vw, 32px);
+  font-size: calc(var(--ui) * 0.062);
   font-weight: 900;
   color: var(--warm);
   opacity: 0;
@@ -116,12 +120,12 @@ html, body {
 
 .hud-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
 
-.speedo { color: #fff; font-weight: 900; font-size: clamp(22px, 6vw, 34px); font-variant-numeric: tabular-nums; }
+.speedo { color: #fff; font-weight: 900; font-size: calc(var(--ui) * 0.062); font-variant-numeric: tabular-nums; }
 .speedo small { font-size: 0.42em; margin-left: 4px; opacity: 0.85; }
 
 .boost-wrap { flex: 1; max-width: 46vw; }
 .boost-bar {
-  height: 12px;
+  height: max(10px, calc(var(--ui) * 0.031));
   border-radius: 99px;
   background: rgba(255, 255, 255, 0.28);
   overflow: hidden;
@@ -135,7 +139,7 @@ html, body {
   transition: width .12s linear;
 }
 .boost-label {
-  font-size: 11px;
+  font-size: max(10px, calc(var(--ui) * 0.028));
   font-weight: 900;
   letter-spacing: 0.14em;
   color: rgba(255, 255, 255, 0.75);
