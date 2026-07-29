@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#8ab6e4">
+<meta name="description" content="ぬいぐるみが雪山を滑るスワイプ操作のスノーボードゲーム">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="mobile-web-app-capable" content="yes">
+<title>もふもふスノーボード</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="assets/icon.svg">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- 操作を受け取る透明レイヤー（canvas 側に触らせない） -->
+<div id="touch" aria-hidden="true"></div>
+
+<!-- ヘッドアップディスプレイ -->
+<div id="hud" class="hidden">
+  <div class="hud-row">
+    <div class="hud-left">
+      <div class="score" id="score">0</div>
+      <div class="sub"><span id="distance">0</span> m</div>
+    </div>
+    <div class="hud-right">
+      <button id="btn-pause" class="icon-btn" aria-label="ポーズ">❚❚</button>
+      <div class="hearts" id="hearts" aria-label="残りライフ"></div>
+    </div>
+  </div>
+
+  <div class="combo" id="combo"></div>
+
+  <div class="hud-bottom">
+    <div class="speedo"><span id="speed">0</span><small>km/h</small></div>
+    <div class="boost-wrap">
+      <div class="boost-bar"><div class="boost-fill" id="boost-fill"></div></div>
+      <div class="boost-label" id="boost-label">BOOST</div>
+    </div>
+  </div>
+</div>
+
+<!-- タイトル -->
+<div class="screen" id="screen-title">
+  <div class="card">
+    <div class="logo">
+      <span class="logo-sub">MOFUMOFU</span>
+      <h1>もふもふ<br>スノーボード</h1>
+    </div>
+    <p class="lead">ぬいぐるみのクマと、雪山をひとすべり。</p>
+    <button class="primary" id="btn-start">スタート</button>
+    <div class="best" id="title-best"></div>
+    <details class="howto">
+      <summary>あそびかた</summary>
+      <ul>
+        <li><b>左右にドラッグ</b> … カービングで曲がる</li>
+        <li><b>上にフリック</b> … ジャンプ（空中で左右に振ると回転トリック）</li>
+        <li><b>下に引いたまま</b> … 前傾で加速／空中ではグラブ</li>
+        <li><b>ダブルタップ</b> … ブースト（ゲージ50%以上で発動・障害物を粉砕）</li>
+        <li>金の鈴を連続で取るとコンボ倍率が上がります</li>
+        <li>PCは <b>← →</b> ／ <b>Space</b> ／ <b>↓</b> ／ <b>Shift</b></li>
+      </ul>
+    </details>
+    <div class="toggles">
+      <button class="toggle on" id="btn-sound">🔊 サウンド</button>
+      <button class="toggle on" id="btn-haptics">📳 振動</button>
+    </div>
+  </div>
+</div>
+
+<!-- ポーズ -->
+<div class="screen hidden" id="screen-pause">
+  <div class="card small">
+    <h2>ひとやすみ</h2>
+    <button class="primary" id="btn-resume">つづける</button>
+    <button class="ghost" id="btn-quit">やめる</button>
+  </div>
+</div>
+
+<!-- リザルト -->
+<div class="screen hidden" id="screen-result">
+  <div class="card">
+    <h2 id="result-title">ゴール！</h2>
+    <div class="result-score" id="result-score">0</div>
+    <div class="result-grid">
+      <div><span>きょり</span><b id="result-distance">0 m</b></div>
+      <div><span>鈴</span><b id="result-bells">0</b></div>
+      <div><span>トリック</span><b id="result-tricks">0</b></div>
+      <div><span>ベスト</span><b id="result-best">0</b></div>
+    </div>
+    <button class="primary" id="btn-retry">もういちど</button>
+    <button class="ghost" id="btn-title">タイトルへ</button>
+  </div>
+</div>
+
+<script src="src/util.js"></script>
+<script src="src/audio.js"></script>
+<script src="src/input.js"></script>
+<script src="src/world.js"></script>
+<script src="src/render.js"></script>
+<script src="src/plushie.js"></script>
+<script src="src/game.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
