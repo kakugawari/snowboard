@@ -36,33 +36,44 @@
       this.nextTowerZ = 90;
       this.nextPoleZ = 0;
       this.nextEventZ = 90;  // 障害物パターンの次の配置位置
+      this.nextVillageZ = 220;
       this.buildScenery();
     }
 
     /* 遠景（山脈・雲）は毎フレーム作らず、最初に一度だけ形を決める */
     buildScenery() {
       const rng = this.rng;
-      /* 稜線: 整数倍音の正弦波を重ねる。周期が揃うので横に繰り返しても
-         継ぎ目が出ない。仕上げに指数をかけて峰を尖らせる。 */
-      const ridge = (n, harmonics, sharp) => {
-        const phases = harmonics.map(() => rng() * Math.PI * 2);
-        const amps = harmonics.map((k) => 1 / Math.pow(k, 0.85));
-        const norm = amps.reduce((a, b) => a + b, 0);
-        const pts = new Array(n);
+      /* 山脈は「独立した峰の集まり」として持つ。連続した稜線を1本引くより、
+         峰ごとに陽の面と影の面を割り当てられるぶん、立体感が出る。
+         日射しは右上から当たっている想定（空の太陽の位置と合わせる）。 */
+      const makePeaks = (n, hMin, hMax, wMin, wMax) => {
+        const peaks = [];
         for (let i = 0; i < n; i++) {
-          const t = i / (n - 1);
-          let v = 0;
-          for (let h = 0; h < harmonics.length; h++) {
-            v += amps[h] * Math.sin(t * Math.PI * 2 * harmonics[h] + phases[h]);
-          }
-          pts[i] = Math.pow(clamp(0.5 + v / (norm * 2), 0, 1), sharp);
+          peaks.push({
+            x: (i + rng.range(-0.32, 0.32)) / n,   // 0..1（山脈の幅に対する位置）
+            h: rng.range(hMin, hMax),              // 0..1（山脈の高さに対する比）
+            w: rng.range(wMin, wMax),              // 裾の広がり
+            skew: rng.range(-0.30, 0.30),          // 頂点の左右の寄り
+            // 左右それぞれの肩。高さと張り出しを変えて、単純な三角形に見せない
+            shoulderL: { at: rng.range(0.34, 0.66), out: rng.range(0.42, 0.72) },
+            shoulderR: { at: rng.range(0.34, 0.66), out: rng.range(0.42, 0.72) },
+            snowLine: rng.range(0.30, 0.52),       // 雪が下りてくる高さ
+            jag: [rng(), rng(), rng(), rng(), rng(), rng()], // 雪線のギザギザ
+            gullies: [rng(), rng(), rng()],        // 岩の筋
+          });
         }
-        return pts;
+        // 高い峰から描いて、低い峰を手前に重ねる
+        peaks.sort((a, b) => b.h - a.h);
+        return peaks;
       };
       this.ranges = [
-        { pts: ridge(96, [1, 2, 3, 5, 9], 1.5), height: 0.40, depth: 0.16, snowLine: 0.34, color: '#93a9c6', snow: '#dbe6f3' },
-        { pts: ridge(96, [1, 2, 4, 7, 11], 1.7), height: 0.30, depth: 0.34, snowLine: 0.40, color: '#8195b6', snow: '#cddbec' },
-        { pts: ridge(96, [2, 3, 5, 8, 13], 1.9), height: 0.20, depth: 0.62, snowLine: 0.46, color: '#6f84a6', snow: '#bccde3' },
+        // 尖った針ではなく幅のある山塊にする。奥ほど霞ませ、色差も小さくする
+        { peaks: makePeaks(6, 0.50, 1.00, 0.16, 0.28), height: 0.32, depth: 0.13, fog: 0.30,
+          lit: '#f2f8fd', shade: '#8fabd2', rock: '#6d89b4', forest: '#63809f' },
+        { peaks: makePeaks(8, 0.42, 0.80, 0.12, 0.22), height: 0.24, depth: 0.30, fog: 0.16,
+          lit: '#edf5fc', shade: '#7091c1', rock: '#4e719f', forest: '#456188' },
+        { peaks: makePeaks(10, 0.30, 0.62, 0.10, 0.17), height: 0.17, depth: 0.58, fog: 0.06,
+          lit: '#e8f2fb', shade: '#5b7dae', rock: '#3a5c8d', forest: '#33507c' },
       ];
       this.clouds = [];
       for (let i = 0; i < 9; i++) {
@@ -84,6 +95,7 @@
       this.nextTowerZ = 90;
       this.nextPoleZ = 0;
       this.nextEventZ = 90;
+      this.nextVillageZ = 220;
     }
 
     add(o) { this.pending.push(o); }
@@ -140,6 +152,13 @@
         this.nextPoleZ += 12;
       }
 
+      /* --- 山あいの集落 --- */
+      if (this.nextVillageZ === undefined) this.nextVillageZ = 220;
+      if (this.nextVillageZ < z0 + C.CHUNK && this.nextVillageZ >= z0) {
+        this.spawnVillage(this.nextVillageZ);
+        this.nextVillageZ += 380 + rng() * 260;
+      }
+
       /* --- リフト（風景の主役） --- */
       if (this.nextTowerZ < z0 + C.CHUNK && this.nextTowerZ >= z0) {
         this.add({ type: 'tower', z: this.nextTowerZ, x: -(half + 13), scale: 1, solid: false, r: 0 });
@@ -150,6 +169,41 @@
       if (this.nextEventZ < z0 + C.CHUNK && this.nextEventZ >= z0) {
         this.spawnPattern(this.nextEventZ, d);
         this.nextEventZ += Math.max(26, 62 - d * 30) + rng() * 24;
+      }
+    }
+
+    /* ゲレンデから離れた斜面に山小屋をかたまりで置く。屋根の暖色が
+       白一色の風景の中で目印になり、距離感も出る。 */
+    spawnVillage(z) {
+      const rng = this.rng;
+      const side = rng.chance(0.5) ? -1 : 1;
+      const base = C.PISTE_HALF + 22 + rng() * 30;
+      const roofs = ['#b5613f', '#a94f38', '#9c5a3c', '#8f4a34'];
+      const n = 4 + rng.int(0, 3);
+      for (let i = 0; i < n; i++) {
+        this.add({
+          type: 'chalet',
+          z: z + rng.range(-26, 26),
+          x: side * (base + rng.range(-14, 14)),
+          scale: rng.range(0.85, 1.25),
+          warm: rng.pick(roofs),
+          chimney: rng.chance(0.6),
+          solid: false, r: 0,
+        });
+      }
+      if (rng.chance(0.5)) {
+        this.add({
+          type: 'steeple', z: z + rng.range(-10, 10),
+          x: side * (base + rng.range(-8, 8)), solid: false, r: 0,
+        });
+      }
+      // 集落まわりの木立
+      for (let i = 0; i < 8; i++) {
+        this.add({
+          type: 'pine', z: z + rng.range(-34, 34),
+          x: side * (base + rng.range(-26, 26)),
+          scale: rng.range(0.6, 1.0), snowy: true, phase: rng() * 6.28, solid: false, r: 0,
+        });
       }
     }
 

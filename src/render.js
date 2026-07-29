@@ -22,8 +22,8 @@
     pine: '#2f5a45',
     pineDark: '#22412f',
     trunk: '#4a3728',
-    rock: '#7d7d86',
-    rockDark: '#5b5b64',
+    rock: '#9aa9bd',
+    rockDark: '#78899f',
     ice: '#bcd9ef',
     gold: '#ffd25e',
     goldDark: '#e8a72c',
@@ -141,57 +141,155 @@
       ctx.fill();
     }
 
+    /* 山脈は形が変わらないので、一度オフスクリーンに描いて毎フレーム貼るだけに
+       する。描画コストがほぼ消えるぶん、峰ごとの陰影や岩の筋まで描き込める。 */
+    buildRanges(world) {
+      const { W, H, dpr } = this;
+      this.rangeKey = `${W}x${H}@${dpr}`;
+      this.rangeArt = world.ranges.map((R) => {
+        const spanW = Math.round(W * 2.4);
+        const peakH = H * R.height;
+        const pad = Math.round(H * 0.06);           // 裾の森が下へはみ出すぶん
+        const h = Math.ceil(peakH * 1.05 + pad);
+        const cv = document.createElement('canvas');
+        cv.width = Math.max(1, Math.round(spanW * dpr));
+        cv.height = Math.max(1, Math.round(h * dpr));
+        const c = cv.getContext('2d');
+        c.scale(dpr, dpr);
+        this.paintRange(c, R, spanW, h - pad, peakH);
+        // 霞は描いた画素だけに乗せる
+        c.globalCompositeOperation = 'source-atop';
+        c.fillStyle = rgba(PAL.haze, R.fog);
+        c.fillRect(0, 0, spanW, h);
+        c.globalCompositeOperation = 'source-over';
+        return { cv, w: spanW, h, baseY: h - pad };
+      });
+    }
+
+    paintRange(c, R, w, baseY, peakH) {
+      const lit = R.lit, shade = R.shade, rock = R.rock;
+      const rockLit = mixHex(rock, lit, 0.22);
+
+      for (let rep = -1; rep <= 1; rep++) {
+        for (const p of R.peaks) {
+          const cx = (p.x + rep) * w;
+          const pw = p.w * w;
+          if (cx + pw < 0 || cx - pw > w) continue;
+          const ax = cx + p.skew * pw;              // 頂点
+          const ay = baseY - p.h * peakH;
+          // 稜線（頂点 → 肩 → 裾）。肩を挟むことで山塊らしい輪郭になる
+          const side = (dir) => {
+            const sh = dir < 0 ? p.shoulderL : p.shoulderR;
+            return [
+              [ax, ay],
+              [cx + dir * pw * sh.out, baseY - p.h * peakH * sh.at],
+              [cx + dir * pw, baseY],
+            ];
+          };
+          const left = side(-1), right = side(1);
+
+          const outline = new Path2D();
+          outline.moveTo(ax, ay);
+          for (let i = 1; i < right.length; i++) outline.lineTo(right[i][0], right[i][1]);
+          for (let i = left.length - 1; i >= 1; i--) outline.lineTo(left[i][0], left[i][1]);
+          outline.closePath();
+
+          c.save();
+          c.clip(outline);
+
+          // 岩肌。頂点を境に右（陽）と左（影）で明度を変える
+          c.fillStyle = rock;
+          c.fillRect(cx - pw - 2, ay - 2, pw * 2 + 4, peakH + 4);
+          c.fillStyle = rockLit;
+          c.fillRect(ax, ay - 2, pw + 2, peakH + 4);
+
+          // 冠雪。下端をギザギザにして、岩が顔を出しているように見せる
+          const snowY = ay + p.h * peakH * p.snowLine;
+          const at = (pts, y) => {            // 稜線上で高さ y の位置の x を求める
+            for (let i = 0; i < pts.length - 1; i++) {
+              const [x1, y1] = pts[i], [x2, y2] = pts[i + 1];
+              if (y >= y1 && y <= y2) return x1 + (x2 - x1) * ((y - y1) / (y2 - y1 || 1));
+            }
+            return pts[pts.length - 1][0];
+          };
+          const snow = new Path2D();
+          snow.moveTo(at(left, snowY), snowY);
+          const steps = p.jag.length;
+          for (let i = 0; i <= steps; i++) {
+            const t = i / steps;
+            const xx = lerp(at(left, snowY), at(right, snowY), t);
+            const yy = snowY - (i % 2 ? 1 : -1) * p.jag[Math.min(i, steps - 1)] * peakH * 0.06;
+            snow.lineTo(xx, yy);
+          }
+          snow.lineTo(at(right, snowY), snowY);
+          snow.lineTo(cx + pw, ay - peakH);
+          snow.lineTo(cx - pw, ay - peakH);
+          snow.closePath();
+
+          c.save();
+          c.clip(snow);
+          c.fillStyle = shade;
+          c.fillRect(cx - pw - 2, ay - peakH, pw * 2 + 4, peakH * 2);
+          c.fillStyle = lit;
+          c.fillRect(ax, ay - peakH, pw + 2, peakH * 2);
+          c.restore();
+
+          // 谷筋。稜線から流れ落ちる影で、白い面が平板にならないようにする
+          c.fillStyle = rgba(shade, 0.38);
+          for (let g = 0; g < p.gullies.length; g++) {
+            const gx = ax + (p.gullies[g] - 0.5) * pw * 1.3;
+            const top = ay + peakH * 0.04 * (g + 1);
+            c.beginPath();
+            c.moveTo(gx, top);
+            c.lineTo(gx + pw * 0.05, baseY);
+            c.lineTo(gx - pw * 0.05, baseY);
+            c.closePath();
+            c.fill();
+          }
+          c.restore();
+        }
+      }
+
+      // 裾の樹林帯。周期関数で作るので左右につないでも継ぎ目が出ない
+      c.fillStyle = R.forest;
+      c.beginPath();
+      c.moveTo(0, baseY + peakH * 0.2);
+      const n = 90;
+      for (let i = 0; i <= n; i++) {
+        const t = i / n;
+        const bump =
+          Math.sin(t * Math.PI * 2 * 3 + 0.7) * 0.5 +
+          Math.sin(t * Math.PI * 2 * 7 + 2.1) * 0.3 +
+          Math.sin(t * Math.PI * 2 * 13) * 0.2;
+        c.lineTo(t * w, baseY - peakH * (0.045 + bump * 0.035));
+      }
+      c.lineTo(w, baseY + peakH * 0.2);
+      c.closePath();
+      c.fill();
+    }
+
     drawRanges(world) {
       const { ctx, W, H } = this;
       const hz = this.horizon;
+      if (this.rangeKey !== `${W}x${H}@${this.dpr}` || !this.rangeArt) this.buildRanges(world);
+
       for (let li = 0; li < world.ranges.length; li++) {
         const R = world.ranges[li];
-        const n = R.pts.length;
-        const spanW = W * 2.4;
-        const off = -this.cam.x * (0.6 + R.depth * 2.2) - (this.cam.z * 0.02 * R.depth);
-        const x0 = ((off % spanW) + spanW) % spanW - spanW * 0.5;
-        const base = hz + H * 0.012 * (1 - R.depth);
-        const peak = H * R.height;
-        const fogAmt = 0.12 + (1 - R.depth) * 0.30;
-
-        // 稜線を左右に繰り返して、横に流れても途切れないようにする
-        ctx.beginPath();
-        ctx.moveTo(-W, base + 10);
-        for (let rep = -1; rep <= 1; rep++) {
-          for (let i = 0; i < n; i++) {
-            ctx.lineTo(x0 - W * 0.7 + rep * spanW + (i / (n - 1)) * spanW, base - R.pts[i] * peak);
-          }
+        const art = this.rangeArt[li];
+        const off = -this.cam.x * (0.6 + R.depth * 2.2) - this.cam.z * 0.02 * R.depth;
+        const x0 = ((off % art.w) + art.w) % art.w - art.w;
+        const top = hz + H * 0.012 * (1 - R.depth) - art.baseY;
+        for (let x = x0; x < W; x += art.w) {
+          ctx.drawImage(art.cv, x, top, art.w, art.h);
         }
-        ctx.lineTo(W * 2, base + 10);
-        ctx.closePath();
-        ctx.fillStyle = mixHex(R.color, PAL.haze, fogAmt);
-        ctx.fill();
-
-        // 雪線から上を白く。稜線でクリップするので峰の形に沿う
-        ctx.save();
-        ctx.clip();
-        const snowY = base - peak * R.snowLine;
-        const g = ctx.createLinearGradient(0, snowY - peak * 0.55, 0, snowY + peak * 0.22);
-        g.addColorStop(0, mixHex(R.snow, PAL.haze, fogAmt * 0.6));
-        g.addColorStop(0.55, mixHex(R.snow, PAL.haze, fogAmt * 0.75));
-        g.addColorStop(1, mixHex(R.color, PAL.haze, fogAmt));
-        ctx.fillStyle = g;
-        ctx.fillRect(-W, snowY - peak, W * 4, peak * 1.3);
-        // 麓ほど霞ませて、山を空気の層の向こうに置く
-        const vg = ctx.createLinearGradient(0, base - peak * 0.55, 0, base + 4);
-        vg.addColorStop(0, rgba(PAL.haze, 0));
-        vg.addColorStop(1, rgba(PAL.haze, 0.85));
-        ctx.fillStyle = vg;
-        ctx.fillRect(-W, base - peak * 0.55, W * 4, peak * 0.55 + 6);
-        ctx.restore();
       }
 
-      // 谷底の霞
-      const hazeG = ctx.createLinearGradient(0, hz - H * 0.10, 0, hz + H * 0.02);
+      // 谷底の霞。山の裾を地平線に溶かす
+      const hazeG = ctx.createLinearGradient(0, hz - H * 0.085, 0, hz + H * 0.015);
       hazeG.addColorStop(0, rgba(PAL.haze, 0));
-      hazeG.addColorStop(1, rgba(PAL.haze, 0.95));
+      hazeG.addColorStop(1, rgba(PAL.haze, 0.92));
       ctx.fillStyle = hazeG;
-      ctx.fillRect(0, hz - H * 0.10, W, H * 0.12);
+      ctx.fillRect(0, hz - H * 0.085, W, H * 0.1);
     }
 
     /* --- 地面とオブジェクト ------------------------------------------- */
@@ -249,7 +347,7 @@
 
       /* 縞の強さは距離で決める。手前は縞が画面上で巨大になり縞模様に
          見えてしまうので薄く、中距離だけはっきりさせて速度感を出す。 */
-      const stripe = (idx % 2) ? clamp((n.dz - 4) / 16, 0, 1) : 0;
+      const stripe = (idx % 2) ? clamp((n.dz - 4) / 16, 0, 1) * 0.34 : 0;
 
       // 一面の雪原（ゲレンデの塗りに完全に隠れる手前の区画では省略する）
       const m = W * 0.07;   // カメラロールで少し広く描いている分の余白
@@ -277,18 +375,24 @@
       ctx.closePath();
       ctx.fill();
 
-      // 圧雪車の縦筋。手前だけ描けば十分で、遠近感の手掛かりになる
-      if (n.dz < 46 && n.s > 1) {
-        ctx.strokeStyle = `rgba(198,216,238,${0.5 * (1 - n.fog) * clamp((46 - n.dz) / 26, 0, 1)})`;
-        ctx.lineWidth = 1;
-        const step = C.PISTE_HALF / 3;
-        for (let k = -2; k <= 2; k++) {
-          const o = k * step;
-          ctx.beginPath();
-          ctx.moveTo(n.x + o * n.s, n.y);
-          ctx.lineTo(f.x + o * f.s, f.y);
-          ctx.stroke();
+      /* 圧雪車が刻んだ溝。フォールラインに沿って走るので、遠近の手掛かりに
+         なる。1本ずつ線を引くと本数ぶん命令が増えるため、区画ごとに細い
+         台形をまとめて1回で塗る。 */
+      if (n.dz < 52 && n.s > 0.9) {
+        const fade = clamp((52 - n.dz) / 30, 0, 1) * (1 - n.fog);
+        ctx.fillStyle = `rgba(196,214,236,${0.20 * fade})`;
+        ctx.beginPath();
+        const step = 0.4, gw = 0.085;         // 溝の間隔と幅(m)
+        for (let o = -C.PISTE_HALF; o <= C.PISTE_HALF; o += step) {
+          const nx = n.x + o * n.s, fx = f.x + o * f.s;
+          if (nx < -20 && fx < -20) continue;
+          if (nx > W + 20 && fx > W + 20) continue;
+          ctx.moveTo(nx - gw * n.s, n.y);
+          ctx.lineTo(fx - gw * f.s, f.y);
+          ctx.lineTo(fx + gw * f.s, f.y);
+          ctx.lineTo(nx + gw * n.s, n.y);
         }
+        ctx.fill();
       }
 
       // 雪の粒のきらめき。区画番号から位置を決めるので流れずに手前へ来る
@@ -305,8 +409,8 @@
 
       // コース両端の陰影
       if (n.s > 0.4 && !covered) {
-        ctx.fillStyle = mixHex(PAL.powder, PAL.haze, n.fog);
-        const eg = 0.9;
+        ctx.fillStyle = mixHex(mixHex(PAL.powder, PAL.piste, 0.45), PAL.haze, n.fog);
+        const eg = 0.7;
         for (const side of [-1, 1]) {
           ctx.beginPath();
           ctx.moveTo(n.x + side * n.w, n.y);
@@ -321,6 +425,7 @@
 
     /* --- オブジェクト --------------------------------------------------- */
     drawObject(o, t) {
+      const ctx0 = this.ctx;
       const zBase = SB.terrainY(o.z);
       const cx = SB.centerX(o.z);
       const p = this.project(cx + o.x, zBase + (o.y || 0), o.z);
@@ -330,8 +435,12 @@
       if (p.y < -this.H) return;
       const f = this.fog(p.dz);
       if (f > 0.9) return;
+      // 真横を通り過ぎる物は画面を覆うだけなので、手前で薄れさせる
+      const nearFade = clamp((p.dz - 1.5) / 2.5, 0, 1);
+      if (nearFade <= 0.02) return;
       const s = p.s;
 
+      if (nearFade < 1) { ctx0.save(); ctx0.globalAlpha = nearFade; }
       switch (o.type) {
         case 'pine': this.pine(p.x, p.y, s * (o.scale || 1), f, o); break;
         case 'bush': this.bush(p.x, p.y, s * (o.scale || 1), f); break;
@@ -344,50 +453,153 @@
         case 'ice': this.icePatch(p.x, p.y, s * (o.scale || 1), f); break;
         case 'bell': if (!o.taken) this.bell(p.x, p.y, s, f, t, o); break;
         case 'tower': this.tower(p.x, p.y, s, f, o); break;
+        case 'chalet': this.chalet(p.x, p.y, s, f, o); break;
+        case 'steeple': this.steeple(p.x, p.y, s, f, o); break;
       }
+      if (nearFade < 1) ctx0.restore();
     }
 
+    /* 針葉樹。鋭い三角形を重ねるのではなく、裾が丸く垂れた段を重ね、
+       その上に雪を厚く載せる。雪の量で「ぼってり感」が決まる。 */
     pine(x, y, s, f, o) {
       const ctx = this.ctx;
-      const h = 5.0 * s, w = 1.5 * s;
-      const sway = Math.sin(o.phase) * 0.02;
+      const h = 5.2 * s, w = 1.8 * s;
+      const sway = Math.sin(o.phase) * 0.02 * h;
       ctx.save();
       ctx.translate(x, y);
-      // 影
-      ctx.fillStyle = rgba('#8aa4c4', 0.28 * (1 - f));
-      ellipse(ctx, 0, 0, w * 0.9, w * 0.28); ctx.fill();
+
+      ctx.fillStyle = rgba('#8aa4c4', 0.26 * (1 - f));
+      ellipse(ctx, 0, 0, w * 1.0, w * 0.3); ctx.fill();
 
       ctx.fillStyle = mixHex(PAL.trunk, PAL.haze, f);
-      ctx.fillRect(-w * 0.09, -h * 0.28, w * 0.18, h * 0.28);
+      ctx.fillRect(-w * 0.08, -h * 0.26, w * 0.16, h * 0.26);
 
       const dark = mixHex(PAL.pineDark, PAL.haze, f);
       const lit = mixHex(PAL.pine, PAL.haze, f);
+      const snow = mixHex('#ffffff', PAL.haze, f * 0.75);
+      const snowShade = mixHex('#dae7f5', PAL.haze, f * 0.75);
+
+      // 段の輪郭。drop で裾の垂れ具合、shrink で上すぼまりを決める
+      const tier = (yTop, yBot, ww, drop) => {
+        ctx.beginPath();
+        ctx.moveTo(sway, yTop);
+        ctx.quadraticCurveTo(ww * 0.72, yBot - (yBot - yTop) * 0.18, ww, yBot);
+        ctx.quadraticCurveTo(ww * 0.45, yBot + drop, 0, yBot + drop * 1.15);
+        ctx.quadraticCurveTo(-ww * 0.45, yBot + drop, -ww, yBot);
+        ctx.quadraticCurveTo(-ww * 0.72, yBot - (yBot - yTop) * 0.18, sway, yTop);
+        ctx.closePath();
+      };
+
       for (let i = 0; i < 4; i++) {
         const t = i / 4;
-        const yTop = -h * (0.30 + t * 0.68) - h * 0.16;
-        const yBot = -h * (0.24 + t * 0.62);
-        const ww = w * (1 - t * 0.62);
+        const ww = w * (1 - t * 0.60);
+        const yBot = -h * (0.22 + t * 0.60);
+        const yTop = yBot - h * 0.34;
+        const drop = h * 0.035;
+
         ctx.fillStyle = i % 2 ? dark : lit;
-        ctx.beginPath();
-        ctx.moveTo(sway * h * (1 + t), yTop);
-        ctx.lineTo(-ww, yBot);
-        ctx.lineTo(ww, yBot);
-        ctx.closePath();
+        tier(yTop, yBot, ww, drop);
         ctx.fill();
+
         if (o.snowy) {
-          // 枝に積もった雪
-          ctx.fillStyle = rgba(PAL.snow, (1 - f) * 0.9);
+          // 枝に載った雪。段の上半分を覆い、下端をでこぼこにする
+          const sy = yBot - (yBot - yTop) * 0.34;
+          ctx.fillStyle = snow;
           ctx.beginPath();
-          ctx.moveTo(sway * h * (1 + t), yTop + h * 0.03);
-          ctx.lineTo(-ww * 0.72, yBot - h * 0.02);
-          ctx.lineTo(-ww * 0.3, yBot - h * 0.05);
-          ctx.lineTo(ww * 0.2, yBot - h * 0.01);
-          ctx.lineTo(ww * 0.62, yBot - h * 0.03);
+          ctx.moveTo(sway, yTop);
+          ctx.quadraticCurveTo(ww * 0.66, sy - (sy - yTop) * 0.2, ww * 0.86, sy);
+          ctx.quadraticCurveTo(ww * 0.6, sy + drop * 0.7, ww * 0.34, sy + drop * 0.2);
+          ctx.quadraticCurveTo(ww * 0.1, sy + drop * 0.9, -ww * 0.16, sy + drop * 0.3);
+          ctx.quadraticCurveTo(-ww * 0.5, sy + drop * 1.0, -ww * 0.86, sy);
+          ctx.quadraticCurveTo(-ww * 0.66, sy - (sy - yTop) * 0.2, sway, yTop);
+          ctx.closePath();
+          ctx.fill();
+          // 雪の下側に薄く影を入れて、厚みを感じさせる
+          ctx.fillStyle = rgba(snowShade, 0.55);
+          ctx.beginPath();
+          ctx.moveTo(-ww * 0.86, sy);
+          ctx.quadraticCurveTo(-ww * 0.5, sy + drop * 1.0, -ww * 0.16, sy + drop * 0.3);
+          ctx.quadraticCurveTo(-ww * 0.4, sy + drop * 0.4, -ww * 0.8, sy - drop * 0.1);
           ctx.closePath();
           ctx.fill();
         }
       }
+      // てっぺんの雪
+      if (o.snowy) {
+        ctx.fillStyle = snow;
+        ellipse(ctx, sway, -h * 0.92, w * 0.16, w * 0.13);
+        ctx.fill();
+      }
       ctx.restore();
+    }
+
+    /* 山あいの山小屋。急勾配の切妻に雪が厚く積もり、壁は木の色、
+       窓には灯りが入る。遠景の中の暖色は距離感と生活感を出す。 */
+    chalet(x, y, s, f, o) {
+      const ctx = this.ctx;
+      const w = 2.6 * s * (o.scale || 1);       // 半幅
+      const wall = 2.4 * s * (o.scale || 1);
+      const roof = 2.3 * s * (o.scale || 1);
+      const warm = o.warm || '#b5613f';
+
+      ctx.fillStyle = rgba('#8aa4c4', 0.22 * (1 - f));
+      ellipse(ctx, 0 + x, y, w * 1.25, w * 0.3); ctx.fill();
+
+      // 壁
+      ctx.fillStyle = mixHex('#c99b6e', PAL.haze, f);
+      ctx.fillRect(x - w * 0.82, y - wall, w * 1.64, wall);
+      ctx.fillStyle = mixHex('#a87c53', PAL.haze, f);
+      ctx.fillRect(x - w * 0.82, y - wall, w * 0.34, wall);   // 陰になる面
+
+      // 窓の灯り
+      if (s > 0.6) {
+        ctx.fillStyle = mixHex('#ffd98a', PAL.haze, f * 0.6);
+        const ww = w * 0.22, wh = wall * 0.26;
+        ctx.fillRect(x - w * 0.34, y - wall * 0.74, ww, wh);
+        ctx.fillRect(x + w * 0.14, y - wall * 0.74, ww, wh);
+      }
+
+      // 屋根（軒が壁より外に出る）＋ 厚く積もった雪
+      ctx.fillStyle = mixHex(warm, PAL.haze, f);
+      ctx.beginPath();
+      ctx.moveTo(x, y - wall - roof);
+      ctx.lineTo(x + w, y - wall + roof * 0.06);
+      ctx.lineTo(x - w, y - wall + roof * 0.06);
+      ctx.closePath(); ctx.fill();
+
+      ctx.fillStyle = mixHex('#ffffff', PAL.haze, f * 0.8);
+      ctx.beginPath();
+      ctx.moveTo(x, y - wall - roof);
+      ctx.lineTo(x + w, y - wall + roof * 0.06);
+      ctx.lineTo(x + w * 0.86, y - wall - roof * 0.06);
+      ctx.quadraticCurveTo(x + w * 0.4, y - wall - roof * 0.44, x, y - wall - roof * 0.86);
+      ctx.quadraticCurveTo(x - w * 0.4, y - wall - roof * 0.44, x - w * 0.86, y - wall - roof * 0.06);
+      ctx.lineTo(x - w, y - wall + roof * 0.06);
+      ctx.closePath(); ctx.fill();
+
+      // 煙突
+      if (o.chimney && s > 0.5) {
+        ctx.fillStyle = mixHex('#8d6b52', PAL.haze, f);
+        ctx.fillRect(x + w * 0.4, y - wall - roof * 0.72, w * 0.18, roof * 0.42);
+      }
+    }
+
+    /* 教会。集落にひとつ混ぜると、遠景に高さのアクセントが生まれる */
+    steeple(x, y, s, f, o) {
+      const ctx = this.ctx;
+      const w = 1.0 * s, wall = 5.2 * s, spire = 3.4 * s;
+      ctx.fillStyle = mixHex('#e2e8ee', PAL.haze, f);
+      ctx.fillRect(x - w * 0.5, y - wall, w, wall);
+      ctx.fillStyle = mixHex('#6b7f9c', PAL.haze, f);
+      ctx.beginPath();
+      ctx.moveTo(x, y - wall - spire);
+      ctx.lineTo(x + w * 0.62, y - wall);
+      ctx.lineTo(x - w * 0.62, y - wall);
+      ctx.closePath(); ctx.fill();
+      if (s > 0.8) {
+        ctx.fillStyle = mixHex('#3f5068', PAL.haze, f);
+        ctx.fillRect(x - w * 0.18, y - wall * 0.86, w * 0.36, wall * 0.2);
+      }
     }
 
     bush(x, y, s, f) {
@@ -475,6 +687,11 @@
 
     pole(x, y, s, f, o) {
       const ctx = this.ctx;
+      // 真横まで来た旗は画面を覆うだけなので、手前で消えるようにする
+      const near = clamp((this.focal / s - 2.5) / 3.5, 0, 1);
+      if (near <= 0.02) return;
+      ctx.save();
+      ctx.globalAlpha *= near;
       const h = 1.7 * s;
       ctx.strokeStyle = mixHex('#4c5462', PAL.haze, f);
       ctx.lineWidth = Math.max(1, 0.07 * s);
@@ -485,10 +702,15 @@
       ctx.lineTo(x + o.side * 0.75 * s, y - h * 0.86);
       ctx.lineTo(x, y - h * 0.66);
       ctx.closePath(); ctx.fill();
+      ctx.restore();
     }
 
     gate(x, y, s, f, o) {
       const ctx = this.ctx;
+      const near = clamp((this.focal / s - 2.5) / 3.5, 0, 1);
+      if (near <= 0.02) return;
+      ctx.save();
+      ctx.globalAlpha *= near;
       const h = 2.0 * s, w = o.w * s;
       const col = mixHex(o.scored ? '#8fd18a' : '#ff9f43', PAL.haze, f);
       for (const side of [-1, 1]) {
@@ -507,6 +729,7 @@
       ctx.lineTo(x + w, y - h + 0.42 * s);
       ctx.lineTo(x - w, y - h + 0.42 * s);
       ctx.closePath(); ctx.fill();
+      ctx.restore();
     }
 
     ramp(x, y, s, f) {
