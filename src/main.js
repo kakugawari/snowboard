@@ -15,6 +15,7 @@
     resultTitle: $('result-title'), resultScore: $('result-score'),
     resultDistance: $('result-distance'), resultBells: $('result-bells'),
     resultTricks: $('result-tricks'), resultBest: $('result-best'),
+    pad: $('pad'), padBoost: document.querySelector('.pad-boost'),
   };
 
   /* --- UI ------------------------------------------------------------ */
@@ -29,7 +30,10 @@
         els[key].classList.toggle('hidden', key !== name);
       }
     },
-    setHud(on) { els.hud.classList.toggle('hidden', !on); },
+    setHud(on) {
+      els.hud.classList.toggle('hidden', !on);
+      els.pad.classList.toggle('hidden', !on);
+    },
 
     updateHud(d) {
       els.score.textContent = fmt(d.score);
@@ -52,7 +56,9 @@
         }
       }
       els.boostFill.style.width = `${clamp(d.boost, 0, 100)}%`;
-      els.boostWrap.classList.toggle('ready', d.boost >= 50 || d.boosting);
+      const ready = d.boost >= 50 || d.boosting;
+      els.boostWrap.classList.toggle('ready', ready);
+      els.padBoost.classList.toggle('ready', ready);
     },
 
     showResult(r) {
@@ -76,6 +82,7 @@
   /* --- 生成 ---------------------------------------------------------- */
   const renderer = new SB.Renderer($('game'));
   const input = new SB.Input($('touch'));
+  input.bindPad($('pad'));
   const game = new SB.Game(renderer, input, ui);
   SB.game = game;
 

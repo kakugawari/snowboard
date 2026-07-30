@@ -47,6 +47,31 @@
   </div>
 </div>
 
+<!-- 操作ボタン。押している間だけ効くものは data-hold、押した瞬間は data-tap -->
+<div id="pad" class="hidden">
+  <div class="pad-side pad-left">
+    <button class="pad-btn" data-hold="left" aria-label="左へ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5 8 12l7.5 7.5"/></svg>
+    </button>
+    <button class="pad-btn" data-hold="right" aria-label="右へ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4.5 16 12l-7.5 7.5"/></svg>
+    </button>
+  </div>
+  <div class="pad-side pad-right">
+    <button class="pad-btn pad-boost" data-tap="boost" aria-label="ブースト">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor" stroke="none"/></svg>
+    </button>
+    <button class="pad-btn" data-hold="tuck" aria-label="しゃがむ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 8.5 12 16l7.5-7.5"/></svg>
+      <span>しゃがむ</span>
+    </button>
+    <button class="pad-btn pad-jump" data-tap="jump" aria-label="ジャンプ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 15.5 12 8l7.5 7.5"/></svg>
+      <span>ジャンプ</span>
+    </button>
+  </div>
+</div>
+
 <!-- タイトル -->
 <div class="screen" id="screen-title">
   <div class="card">
@@ -60,13 +85,15 @@
     <details class="howto">
       <summary>あそびかた</summary>
       <ul>
-        <li><b>左右にドラッグ</b> … カービングで曲がる</li>
-        <li><b>上にフリック</b> … ジャンプ（空中で左右に振ると回転トリック）</li>
-        <li><b>下に引いたまま</b> … 前傾で加速／空中ではグラブ</li>
-        <li><b>ダブルタップ</b> … ブースト（ゲージ50%以上で発動・障害物を粉砕）</li>
+        <li><b>左下の ◀ ▶</b> … 押している間カービング</li>
+        <li><b>右下の ∧</b> … ジャンプ（空中で ◀ ▶ を押すと回転トリック）</li>
+        <li><b>右下の ∨</b> … 押している間しゃがんで加速／空中ではグラブ</li>
+        <li><b>⚡ ボタン</b> … ブースト（ゲージ50%以上で光ったら押せる・障害物を粉砕）</li>
+        <li>画面を<b>ドラッグ／フリック</b>する操作も、そのまま使えます</li>
         <li>金の鈴を連続で取るとコンボ倍率が上がります</li>
         <li>PCは <b>← →</b> ／ <b>Space</b> ／ <b>↓</b> ／ <b>Shift</b></li>
       </ul>
+      <p class="tip">横向きの画面がおすすめです。</p>
     </details>
     <div class="toggles">
       <button class="toggle on" id="btn-sound">🔊 サウンド</button>

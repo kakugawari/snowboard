@@ -137,12 +137,21 @@ html, body {
 .combo.show { opacity: 1; animation: pop .28s ease-out; }
 @keyframes pop { from { transform: scale(0.7); } to { transform: scale(1); } }
 
-.hud-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+/* 下段は操作ボタンに挟まれるので、中央に寄せて幅を絞る */
+.hud-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: calc(var(--ui) * 0.03);
+  width: min(100%, calc(var(--ui) * 1.1));
+  margin: 0 auto;
+  padding-bottom: calc(var(--ui) * 0.26);   /* 操作ボタンの上に載せる */
+}
 
 .speedo { color: #fff; font-weight: 900; font-size: calc(var(--ui) * 0.062); font-variant-numeric: tabular-nums; }
 .speedo small { font-size: 0.42em; margin-left: 4px; opacity: 0.85; }
 
-.boost-wrap { flex: 1; max-width: 46vw; }
+.boost-wrap { flex: 1; max-width: calc(var(--ui) * 0.5); }
 .boost-bar {
   height: max(10px, calc(var(--ui) * 0.031));
   border-radius: 99px;
@@ -168,6 +177,119 @@ html, body {
 .boost-wrap.ready .boost-fill { background: linear-gradient(90deg, #ffe08a, #ff9f43); }
 .boost-wrap.ready .boost-label { color: var(--warm); animation: blink 0.8s infinite; }
 @keyframes blink { 50% { opacity: 0.35; } }
+
+/* --- 操作ボタン ------------------------------------------------------ */
+#pad {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;      /* 枠は透過。ボタンだけ触れる */
+}
+
+.pad-side {
+  position: absolute;
+  bottom: calc(var(--safe-b) + var(--ui) * 0.035);
+  display: flex;
+  align-items: flex-end;
+  gap: calc(var(--ui) * 0.028);
+}
+.pad-left  { left: calc(var(--safe-l) + var(--ui) * 0.04); }
+.pad-right { right: calc(var(--safe-r) + var(--ui) * 0.04); }
+
+.pad-btn {
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: max(60px, calc(var(--ui) * 0.155));
+  height: max(60px, calc(var(--ui) * 0.155));
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(12, 34, 70, 0.28);
+  transition: transform .07s, background .12s;
+}
+.pad-btn svg {
+  width: 44%;
+  height: 44%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 3px rgba(12, 34, 70, 0.45));
+}
+.pad-btn span {
+  font-size: max(9px, calc(var(--ui) * 0.021));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 4px rgba(12, 34, 70, 0.5);
+}
+.pad-btn.pressed,
+.pad-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.pad-jump {
+  width: max(76px, calc(var(--ui) * 0.195));
+  height: max(76px, calc(var(--ui) * 0.195));
+  background: rgba(126, 190, 255, 0.34);
+  border-color: rgba(255, 255, 255, 0.78);
+}
+.pad-boost {
+  width: max(48px, calc(var(--ui) * 0.115));
+  height: max(48px, calc(var(--ui) * 0.115));
+  opacity: 0.42;                       /* ゲージが溜まるまでは控えめ */
+  transition: opacity .2s, transform .07s, background .12s;
+}
+.pad-boost.ready {
+  opacity: 1;
+  background: rgba(255, 196, 92, 0.42);
+  border-color: rgba(255, 226, 160, 0.9);
+  animation: boostPulse 1.1s ease-in-out infinite;
+}
+@keyframes boostPulse {
+  50% { box-shadow: 0 6px 18px rgba(12, 34, 70, 0.28), 0 0 0 8px rgba(255, 208, 120, 0.16); }
+}
+
+/* 画面が低いとき（横向きのスマホ）はボタンを少し詰める */
+@media (max-height: 460px) {
+  .pad-side { bottom: calc(var(--safe-b) + 10px); gap: 10px; }
+  .pad-left  { left: calc(var(--safe-l) + 12px); }
+  .pad-right { right: calc(var(--safe-r) + 12px); }
+  .pad-btn span { display: none; }
+
+  /* 下中央はキャラクターと操作ボタンの居場所なので、計器は上へ逃がす */
+  .hud-bottom {
+    position: absolute;
+    top: calc(var(--safe-t) + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    padding-bottom: 0;
+    align-items: center;
+  }
+  .boost-wrap { width: 34vw; }
+  .boost-label { display: none; }
+}
+
+@media (hover: hover) {
+  .pad-btn:hover { background: rgba(255, 255, 255, 0.36); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pad-boost.ready { animation: none; }
+  .boost-wrap.ready .boost-label { animation: none; }
+}
 
 /* --- スクリーン ------------------------------------------------------ */
 .screen {
@@ -273,6 +395,7 @@ button {
 .howto ul { margin: 10px 0 4px; padding-left: 18px; }
 .howto li { font-size: 13px; line-height: 1.75; color: var(--ink-soft); }
 .howto b { color: var(--ink); }
+.howto .tip { margin: 8px 0 2px; font-size: 12px; font-weight: 700; color: var(--accent-d); }
 
 .toggles { display: flex; gap: 8px; margin-top: 14px; }
 .toggle {
@@ -350,6 +473,31 @@ button {
   </div>
 </div>
 
+<!-- 操作ボタン。押している間だけ効くものは data-hold、押した瞬間は data-tap -->
+<div id="pad" class="hidden">
+  <div class="pad-side pad-left">
+    <button class="pad-btn" data-hold="left" aria-label="左へ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5 8 12l7.5 7.5"/></svg>
+    </button>
+    <button class="pad-btn" data-hold="right" aria-label="右へ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4.5 16 12l-7.5 7.5"/></svg>
+    </button>
+  </div>
+  <div class="pad-side pad-right">
+    <button class="pad-btn pad-boost" data-tap="boost" aria-label="ブースト">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor" stroke="none"/></svg>
+    </button>
+    <button class="pad-btn" data-hold="tuck" aria-label="しゃがむ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 8.5 12 16l7.5-7.5"/></svg>
+      <span>しゃがむ</span>
+    </button>
+    <button class="pad-btn pad-jump" data-tap="jump" aria-label="ジャンプ">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 15.5 12 8l7.5 7.5"/></svg>
+      <span>ジャンプ</span>
+    </button>
+  </div>
+</div>
+
 <!-- タイトル -->
 <div class="screen" id="screen-title">
   <div class="card">
@@ -363,13 +511,15 @@ button {
     <details class="howto">
       <summary>あそびかた</summary>
       <ul>
-        <li><b>左右にドラッグ</b> … カービングで曲がる</li>
-        <li><b>上にフリック</b> … ジャンプ（空中で左右に振ると回転トリック）</li>
-        <li><b>下に引いたまま</b> … 前傾で加速／空中ではグラブ</li>
-        <li><b>ダブルタップ</b> … ブースト（ゲージ50%以上で発動・障害物を粉砕）</li>
+        <li><b>左下の ◀ ▶</b> … 押している間カービング</li>
+        <li><b>右下の ∧</b> … ジャンプ（空中で ◀ ▶ を押すと回転トリック）</li>
+        <li><b>右下の ∨</b> … 押している間しゃがんで加速／空中ではグラブ</li>
+        <li><b>⚡ ボタン</b> … ブースト（ゲージ50%以上で光ったら押せる・障害物を粉砕）</li>
+        <li>画面を<b>ドラッグ／フリック</b>する操作も、そのまま使えます</li>
         <li>金の鈴を連続で取るとコンボ倍率が上がります</li>
         <li>PCは <b>← →</b> ／ <b>Space</b> ／ <b>↓</b> ／ <b>Shift</b></li>
       </ul>
+      <p class="tip">横向きの画面がおすすめです。</p>
     </details>
     <div class="toggles">
       <button class="toggle on" id="btn-sound">🔊 サウンド</button>
@@ -678,9 +828,50 @@ button {
       this.moved = 0;
       this.flickBuf = [];     // 直近の縦移動サンプル（フリック判定用）
       this.keys = new Set();
+      this.held = { left: false, right: false, tuck: false };  // 画面ボタン
       this.enabled = true;
 
       this._bind();
+    }
+
+    /* 画面上の操作ボタン。押している間だけ効くもの（data-hold）と、
+       押した瞬間に一度だけ効くもの（data-tap）を同じ仕組みで拾う。 */
+    bindPad(root) {
+      if (!root) return;
+      const press = (btn, on) => {
+        const hold = btn.dataset.hold;
+        if (hold) this.held[hold] = on;
+        btn.classList.toggle('pressed', on);
+      };
+
+      for (const btn of root.querySelectorAll('[data-hold],[data-tap]')) {
+        btn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();                 // 下の操作レイヤーに渡さない
+          btn.setPointerCapture && btn.setPointerCapture(e.pointerId);
+          press(btn, true);
+          const tap = btn.dataset.tap;
+          if (tap === 'jump') this.jumpQueued = true;
+          if (tap === 'boost') this.boostQueued = true;
+        }, { passive: false });
+
+        const release = (e) => { e.stopPropagation(); press(btn, false); };
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointercancel', release);
+        // 指がボタンの外へ滑ったときに押しっぱなしにならないようにする
+        btn.addEventListener('pointerleave', () => press(btn, false));
+        btn.addEventListener('contextmenu', (e) => e.preventDefault());
+      }
+
+      // 何かの拍子に離した判定を取り逃しても、必ず戻せるようにしておく
+      addEventListener('pointerup', () => this.releaseAll(root));
+      addEventListener('pointercancel', () => this.releaseAll(root));
+      addEventListener('blur', () => this.releaseAll(root));
+    }
+
+    releaseAll(root) {
+      this.held.left = this.held.right = this.held.tuck = false;
+      if (root) for (const b of root.querySelectorAll('.pressed')) b.classList.remove('pressed');
     }
 
     get radius() { return Math.max(70, Math.min(innerWidth, innerHeight) * 0.24); }
@@ -772,25 +963,36 @@ button {
       addEventListener('blur', () => { this.keys.clear(); this.active = false; this.tuck = false; });
     }
 
+    /* 毎フレーム、押されているものだけから状態を作り直す。
+       前の値に OR を重ねると、離しても解除されずに残ってしまう。 */
     update() {
       const k = this.keys;
       let steer = 0;
+      let tuck = false;
+
       if (k.has('ArrowLeft') || k.has('KeyA')) steer -= 1;
       if (k.has('ArrowRight') || k.has('KeyD')) steer += 1;
+      if (this.held.left) steer -= 1;
+      if (this.held.right) steer += 1;
 
-      if (this.active) {
+      // 画面ボタンを使っていないときだけ、ドラッグでの操舵を見る
+      if (this.active && !this.held.left && !this.held.right) {
         const r = this.radius;
         steer = clamp((this.curX - this.originX) / r, -1, 1);
-        const dy = this.curY - this.originY;
-        this.tuck = dy > r * 0.45;
+        tuck = this.curY - this.originY > r * 0.45;
       }
-      this.tuck = this.tuck || k.has('ArrowDown') || k.has('KeyS');
-      this.steer = steer;
+
+      this.tuck = tuck || this.held.tuck || k.has('ArrowDown') || k.has('KeyS');
+      this.steer = clamp(steer, -1, 1);
     }
 
     consumeJump() { const v = this.jumpQueued; this.jumpQueued = false; return v; }
     consumeBoost() { const v = this.boostQueued; this.boostQueued = false; return v; }
-    reset() { this.active = false; this.steer = 0; this.tuck = false; this.jumpQueued = this.boostQueued = false; }
+    reset() {
+      this.active = false; this.steer = 0; this.tuck = false;
+      this.jumpQueued = this.boostQueued = false;
+      this.releaseAll(document.getElementById('pad'));
+    }
   }
 
   SB.Input = Input;
@@ -823,7 +1025,7 @@ button {
   }
   // コースの中心線（蛇行）
   function centerX(z) {
-    return 11 * Math.sin(z * 0.0043) + 4.5 * Math.sin(z * 0.0117 + 1.3);
+    return 14 * Math.sin(z * 0.0041) + 5.5 * Math.sin(z * 0.0113 + 1.3);
   }
 
   class World {
@@ -868,11 +1070,14 @@ button {
       this.ranges = [
         // 尖った針ではなく幅のある山塊にする。奥ほど霞ませ、色差も小さくする
         { peaks: makePeaks(6, 0.50, 1.00, 0.16, 0.28), height: 0.32, depth: 0.13, fog: 0.30,
-          lit: '#f2f8fd', shade: '#8fabd2', rock: '#6d89b4', forest: '#63809f' },
+          lit: '#f2f8fd', shade: '#8fabd2', rock: '#5c7ba9', forest: '#63809f' },
         { peaks: makePeaks(8, 0.42, 0.80, 0.12, 0.22), height: 0.24, depth: 0.30, fog: 0.16,
-          lit: '#edf5fc', shade: '#7091c1', rock: '#4e719f', forest: '#456188' },
+          lit: '#edf5fc', shade: '#7091c1', rock: '#3e6491', forest: '#456188' },
         { peaks: makePeaks(10, 0.30, 0.62, 0.10, 0.17), height: 0.17, depth: 0.58, fog: 0.06,
-          lit: '#e8f2fb', shade: '#5b7dae', rock: '#3a5c8d', forest: '#33507c' },
+          lit: '#e8f2fb', shade: '#5b7dae', rock: '#2d5080', forest: '#33507c' },
+        // 地平線際のなだらかな丘。雪原と山脈のあいだを埋める
+        { peaks: makePeaks(13, 0.22, 0.50, 0.07, 0.13), height: 0.105, depth: 0.86, fog: 0.02,
+          lit: '#f0f7fd', shade: '#93b0d4', rock: '#7d9cc4', forest: '#2f4b6b' },
       ];
       this.clouds = [];
       for (let i = 0; i < 9; i++) {
@@ -1118,12 +1323,16 @@ button {
   const C = SB.C;
 
   const PAL = {
-    skyTop: '#3d6fb5',
-    skyMid: '#86b3e0',
-    skyLow: '#cfe0f2',
+    skyTop: '#2c62ac',
+    skyMid: '#7fb0e2',
+    skyLow: '#cfe1f2',
+    skyWarm: '#eef0ec',   // 地平線ぎわ。わずかに暖色へ振る
     haze: '#dfe9f5',
     sun: '#fff6d8',
     snow: '#f4f8fd',
+    sunlit: '#fffdf4',      // 日の当たる雪（わずかに暖色）
+    snowDeep: '#b9cee8',    // 落ち込んだ面の影（青）
+    foreCool: '#a8c4e2',    // 足元。寒色に沈めて中景を引き立てる
     snowShade: '#dce8f6',
     piste: '#ffffff',
     pisteAlt: '#eaf2fc',
@@ -1164,9 +1373,13 @@ button {
     /* --- カメラ ------------------------------------------------------- */
     setCamera(cam) {
       this.cam = cam;
-      this.focal = this.H * 0.78 * cam.fov;
+      // 横長の画面では H が小さくなり、H だけを基準にすると全体が縮んで
+      // しまう。横幅も見て、寄り気味の画角にする。
+      this.focal = Math.max(this.H * 0.78, this.W * 0.50) * cam.fov;
       this.horizon = this.H * 0.44 + cam.pitch * this.H + cam.shakeY;
       this.cx = this.W * 0.5 + cam.shakeX;
+      // 遠景の山も H 基準だと横長で潰れるので、画面比に応じて持ち上げる
+      this.skyScale = 1 + 0.42 * clamp(this.W / this.H - 0.8, 0, 1.6);
     }
 
     project(x, y, z) {
@@ -1187,25 +1400,62 @@ button {
       const { ctx, W, H } = this;
       const hz = this.horizon;
 
-      const g = ctx.createLinearGradient(0, 0, 0, Math.max(hz, 10));
+      /* 空は上ほど濃い青、地平線に近づくほど淡く暖かい。上下だけでなく
+         「太陽の側が暖かい」ことまで描くと、時間帯のある空気になる。 */
+      const skyH = Math.max(hz, 10);
+      const g = ctx.createLinearGradient(0, 0, 0, skyH);
       g.addColorStop(0, PAL.skyTop);
-      g.addColorStop(0.55, PAL.skyMid);
-      g.addColorStop(1, PAL.skyLow);
+      g.addColorStop(0.42, PAL.skyMid);
+      g.addColorStop(0.82, PAL.skyLow);
+      g.addColorStop(1, PAL.skyWarm);
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W, Math.max(hz, 0));
       if (hz < 0) { ctx.fillStyle = PAL.skyLow; ctx.fillRect(0, 0, W, H); }
 
-      // 太陽とその光暈
       const sx = W * 0.74 - this.cam.x * 1.2;
-      const sy = hz - H * 0.30;
-      const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, H * 0.42);
-      glow.addColorStop(0, 'rgba(255,250,225,0.95)');
-      glow.addColorStop(0.16, 'rgba(255,244,205,0.45)');
-      glow.addColorStop(1, 'rgba(255,240,200,0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, W, Math.max(hz, 0));
-      ctx.fillStyle = PAL.sun;
-      ellipse(ctx, sx, sy, H * 0.035, H * 0.035); ctx.fill();
+      const sy = Math.max(H * 0.14, hz - H * 0.30 * this.skyScale);
+      this.sunX = sx; this.sunY = sy;
+
+      // 光暈は2枚重ね。広く淡いものと、芯の近くの濃いもの
+      const gr = Math.max(W, H) * 0.42;
+      const wide = ctx.createRadialGradient(sx, sy, 0, sx, sy, gr);
+      wide.addColorStop(0, 'rgba(255,246,214,0.46)');
+      wide.addColorStop(0.35, 'rgba(255,240,200,0.16)');
+      wide.addColorStop(1, 'rgba(255,236,190,0)');
+      ctx.fillStyle = wide;
+      ctx.fillRect(sx - gr, Math.max(0, sy - gr), gr * 2, Math.min(hz, sy + gr) - Math.max(0, sy - gr));
+
+      // 光の筋。太陽から扇状に薄く伸ばす
+      if (hz > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, W, hz);
+        ctx.clip();
+        const rays = 5;
+        const reach = Math.max(W, H) * 0.85;
+        for (let i = 0; i < rays; i++) {
+          const a = 1.18 + i * 0.19 + Math.sin(t * 0.08 + i) * 0.012;
+          const spread = 0.030 + (i % 3) * 0.012;
+          ctx.fillStyle = `rgba(255,248,226,${0.055 + (i % 2) * 0.03})`;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx + Math.cos(a - spread) * reach, sy + Math.sin(a - spread) * reach);
+          ctx.lineTo(sx + Math.cos(a + spread) * reach, sy + Math.sin(a + spread) * reach);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      const core = ctx.createRadialGradient(sx, sy, 0, sx, sy, H * 0.165 * this.skyScale);
+      core.addColorStop(0, 'rgba(255,253,240,0.98)');
+      core.addColorStop(0.22, 'rgba(255,247,215,0.6)');
+      core.addColorStop(1, 'rgba(255,242,200,0)');
+      const cr = H * 0.17 * this.skyScale;
+      ctx.fillStyle = core;
+      ctx.fillRect(sx - cr, sy - cr, cr * 2, cr * 2);
+      ctx.fillStyle = '#fffdf2';
+      ellipse(ctx, sx, sy, H * 0.032 * this.skyScale, H * 0.032 * this.skyScale); ctx.fill();
 
       // 雲
       for (const c of world.clouds) {
@@ -1213,7 +1463,7 @@ button {
         if (c.x > 1.3) c.x = -0.3;
         const cxp = c.x * W * 1.4 - W * 0.2 - this.cam.x * 2.4;
         const cyp = c.y * hz;
-        this.cloud(cxp, cyp, c.s * H * 0.05, c.puffs, c.seed);
+        this.cloud(cxp, cyp, c.s * H * 0.055 * this.skyScale, c.puffs, c.seed, sx);
       }
 
       // 鳥（小さな動き。風景に生き物がいると印象が変わる）
@@ -1235,19 +1485,46 @@ button {
       this.drawRanges(world);
     }
 
-    cloud(x, y, r, puffs, seed) {
+    /* 雲は白い塊ではなく、下側の影・白い本体・太陽側の縁の3層で描く。
+       この3層があるだけで、平面的な楕円が立体になる。 */
+    cloud(x, y, r, puffs, seed, sunX) {
       const ctx = this.ctx;
-      ctx.fillStyle = 'rgba(255,255,255,0.82)';
-      for (let i = 0; i < puffs; i++) {
+      const lobe = (i) => {
         const a = seed + i * 1.7;
-        const px = x + (i - puffs / 2) * r * 0.85;
-        const py = y + Math.sin(a) * r * 0.18;
-        ellipse(ctx, px, py, r * (0.7 + (Math.sin(a * 3) + 1) * 0.3), r * 0.5);
+        return {
+          x: x + (i - puffs / 2) * r * 0.82,
+          y: y + Math.sin(a) * r * 0.16,
+          rx: r * (0.72 + (Math.sin(a * 3) + 1) * 0.28),
+          ry: r * 0.5,
+        };
+      };
+
+      // 影（下にずらした同じ形）
+      ctx.fillStyle = 'rgba(176,196,222,0.55)';
+      for (let i = 0; i < puffs; i++) {
+        const l = lobe(i);
+        ellipse(ctx, l.x, l.y + r * 0.20, l.rx * 0.96, l.ry * 0.92);
         ctx.fill();
       }
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ellipse(ctx, x, y + r * 0.28, r * puffs * 0.42, r * 0.34);
-      ctx.fill();
+      ctx.fillStyle = 'rgba(186,205,229,0.5)';
+      ellipse(ctx, x, y + r * 0.34, r * puffs * 0.4, r * 0.3); ctx.fill();
+
+      // 本体
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      for (let i = 0; i < puffs; i++) {
+        const l = lobe(i);
+        ellipse(ctx, l.x, l.y, l.rx, l.ry);
+        ctx.fill();
+      }
+
+      // 太陽の側だけ縁を暖色に光らせる
+      const dir = sunX !== undefined && sunX < x ? -1 : 1;
+      ctx.fillStyle = 'rgba(255,252,242,0.42)';
+      for (let i = 0; i < puffs; i++) {
+        const l = lobe(i);
+        ellipse(ctx, l.x + dir * l.rx * 0.16, l.y - l.ry * 0.22, l.rx * 0.68, l.ry * 0.5);
+        ctx.fill();
+      }
     }
 
     /* 山脈は形が変わらないので、一度オフスクリーンに描いて毎フレーム貼るだけに
@@ -1255,9 +1532,10 @@ button {
     buildRanges(world) {
       const { W, H, dpr } = this;
       this.rangeKey = `${W}x${H}@${dpr}`;
+      const skyScale = this.skyScale || 1;
       this.rangeArt = world.ranges.map((R) => {
         const spanW = Math.round(W * 2.4);
-        const peakH = H * R.height;
+        const peakH = H * R.height * skyScale;
         const pad = Math.round(H * 0.06);           // 裾の森が下へはみ出すぶん
         const h = Math.ceil(peakH * 1.05 + pad);
         const cv = document.createElement('canvas');
@@ -1327,7 +1605,7 @@ button {
           for (let i = 0; i <= steps; i++) {
             const t = i / steps;
             const xx = lerp(at(left, snowY), at(right, snowY), t);
-            const yy = snowY - (i % 2 ? 1 : -1) * p.jag[Math.min(i, steps - 1)] * peakH * 0.06;
+            const yy = snowY - (i % 2 ? 1 : -1) * p.jag[Math.min(i, steps - 1)] * peakH * 0.10;
             snow.lineTo(xx, yy);
           }
           snow.lineTo(at(right, snowY), snowY);
@@ -1344,7 +1622,7 @@ button {
           c.restore();
 
           // 谷筋。稜線から流れ落ちる影で、白い面が平板にならないようにする
-          c.fillStyle = rgba(shade, 0.38);
+          c.fillStyle = rgba(shade, 0.5);
           for (let g = 0; g < p.gullies.length; g++) {
             const gx = ax + (p.gullies[g] - 0.5) * pw * 1.3;
             const top = ay + peakH * 0.04 * (g + 1);
@@ -1440,12 +1718,15 @@ button {
       if (dz < 1.0) return null;
       const s = this.focal / dz;
       const cxw = SB.centerX(z);
+      // 前後の高さの差＝斜面の向き。光は上から当たるので、せり上がる面は
+      // 明るく、落ち込む面は影になる。これで雪面のうねりが見えるようになる。
+      const slope = (SB.terrainY(z + C.SEG_LEN) - SB.terrainY(z)) / C.SEG_LEN;
       return {
         z,
         x: this.cx + (cxw - this.cam.x) * s,
         y: this.horizon + (this.cam.y - SB.terrainY(z)) * s,
         w: half * s,
-        s, dz,
+        s, dz, slope,
         fog: this.fog(dz),
       };
     }
@@ -1458,13 +1739,25 @@ button {
          見えてしまうので薄く、中距離だけはっきりさせて速度感を出す。 */
       const stripe = (idx % 2) ? clamp((n.dz - 4) / 16, 0, 1) * 0.34 : 0;
 
+      /* 斜面の向きで明るさを変える。せり上がる面は日を受けて白く、
+         落ち込む面は陰る。平らな白い板が、うねる雪面に見えてくる。 */
+      const light = clamp(n.slope * 3.4, -1, 1);
+      // 足元は少し寒色に沈める。中景の明るさが引き立ち、奥行きも出る
+      const nearCool = clamp((14 - n.dz) / 12, 0, 1) * 0.30;
+      const snowTone = light >= 0
+        ? mixHex(PAL.snow, PAL.sunlit, light * 0.55)
+        : mixHex(PAL.snow, PAL.snowDeep, -light * 0.85);
+      const pisteTone = light >= 0
+        ? mixHex(PAL.piste, PAL.sunlit, light * 0.5)
+        : mixHex(PAL.piste, PAL.snowDeep, -light * 0.8);
+
       // 一面の雪原（ゲレンデの塗りに完全に隠れる手前の区画では省略する）
       const m = W * 0.07;   // カメラロールで少し広く描いている分の余白
       const covered = n.x - n.w < -m && n.x + n.w > W + m
                    && f.x - f.w < -m && f.x + f.w > W + m;
       if (!covered) {
       const wide = 120;
-      ctx.fillStyle = mixHex(mixHex(PAL.snow, PAL.snowShade, stripe * 0.55), PAL.haze, n.fog);
+      ctx.fillStyle = mixHex(mixHex(mixHex(snowTone, PAL.snowShade, stripe * 0.55), PAL.foreCool, nearCool), PAL.haze, n.fog);
       ctx.beginPath();
       ctx.moveTo(n.x - wide * n.s, n.y);
       ctx.lineTo(f.x - wide * f.s, f.y);
@@ -1475,7 +1768,7 @@ button {
       }
 
       // 圧雪バーン（横縞が流れることで速度が読める）
-      ctx.fillStyle = mixHex(mixHex(PAL.piste, PAL.pisteAlt, stripe), PAL.haze, n.fog);
+      ctx.fillStyle = mixHex(mixHex(mixHex(pisteTone, PAL.pisteAlt, stripe), PAL.foreCool, nearCool), PAL.haze, n.fog);
       ctx.beginPath();
       ctx.moveTo(n.x - n.w, n.y);
       ctx.lineTo(f.x - f.w, f.y);
@@ -1487,8 +1780,8 @@ button {
       /* 圧雪車が刻んだ溝。フォールラインに沿って走るので、遠近の手掛かりに
          なる。1本ずつ線を引くと本数ぶん命令が増えるため、区画ごとに細い
          台形をまとめて1回で塗る。 */
-      if (n.dz < 52 && n.s > 0.9) {
-        const fade = clamp((52 - n.dz) / 30, 0, 1) * (1 - n.fog);
+      if (n.dz < 44 && n.s > 0.9) {
+        const fade = clamp((44 - n.dz) / 26, 0, 1) * (1 - n.fog);
         ctx.fillStyle = `rgba(196,214,236,${0.20 * fade})`;
         ctx.beginPath();
         const step = 0.4, gw = 0.085;         // 溝の間隔と幅(m)
@@ -1568,17 +1861,27 @@ button {
       if (nearFade < 1) ctx0.restore();
     }
 
+    /* 落ち影。光は右上から来ているので、影は左手前へ長く伸びる。
+       接地点に丸を置くだけより、物が地面に立っている感じが強く出る。 */
+    castShadow(x, y, h, f, wide) {
+      const ctx = this.ctx;
+      const len = h * 0.9;
+      ctx.fillStyle = `rgba(122,155,196,${0.30 * (1 - f)})`;
+      ellipse(ctx, x - len * 0.34, y + h * 0.012, len * 0.5, (wide || h * 0.1), -0.13);
+      ctx.fill();
+    }
+
     /* 針葉樹。鋭い三角形を重ねるのではなく、裾が丸く垂れた段を重ね、
        その上に雪を厚く載せる。雪の量で「ぼってり感」が決まる。 */
     pine(x, y, s, f, o) {
       const ctx = this.ctx;
       const h = 5.2 * s, w = 1.8 * s;
       const sway = Math.sin(o.phase) * 0.02 * h;
+
+      this.castShadow(x, y, h * 0.62, f, w * 0.34);
+
       ctx.save();
       ctx.translate(x, y);
-
-      ctx.fillStyle = rgba('#8aa4c4', 0.26 * (1 - f));
-      ellipse(ctx, 0, 0, w * 1.0, w * 0.3); ctx.fill();
 
       ctx.fillStyle = mixHex(PAL.trunk, PAL.haze, f);
       ctx.fillRect(-w * 0.08, -h * 0.26, w * 0.16, h * 0.26);
@@ -1651,8 +1954,7 @@ button {
       const roof = 2.3 * s * (o.scale || 1);
       const warm = o.warm || '#b5613f';
 
-      ctx.fillStyle = rgba('#8aa4c4', 0.22 * (1 - f));
-      ellipse(ctx, 0 + x, y, w * 1.25, w * 0.3); ctx.fill();
+      this.castShadow(x, y, (wall + roof) * 0.8, f, w * 0.34);
 
       // 壁
       ctx.fillStyle = mixHex('#c99b6e', PAL.haze, f);
@@ -1723,8 +2025,7 @@ button {
     rock(x, y, s, f, o) {
       const ctx = this.ctx;
       const r = 1.25 * s;
-      ctx.fillStyle = rgba('#8aa4c4', 0.3 * (1 - f));
-      ellipse(ctx, x, y, r * 1.05, r * 0.3); ctx.fill();
+      this.castShadow(x, y, r * 1.1, f, r * 0.3);
       ctx.fillStyle = mixHex(PAL.rockDark, PAL.haze, f);
       ctx.beginPath();
       ctx.moveTo(x - r, y);
@@ -1768,8 +2069,7 @@ button {
     snowman(x, y, s, f) {
       const ctx = this.ctx;
       const r = 0.62 * s;
-      ctx.fillStyle = rgba('#8aa4c4', 0.3 * (1 - f));
-      ellipse(ctx, x, y, r * 1.5, r * 0.4); ctx.fill();
+      this.castShadow(x, y, r * 3.0, f, r * 0.42);
       const body = mixHex('#ffffff', PAL.haze, f);
       const shade = mixHex(PAL.snowShade, PAL.haze, f);
       ctx.fillStyle = shade; ellipse(ctx, x, y - r, r * 1.25, r * 1.15); ctx.fill();
@@ -1821,23 +2121,23 @@ button {
       ctx.save();
       ctx.globalAlpha *= near;
       const h = 2.0 * s, w = o.w * s;
-      const col = mixHex(o.scored ? '#8fd18a' : '#ff9f43', PAL.haze, f);
+      const base = o.scored ? '#7fc98a' : '#e8573f';
+      const col = mixHex(base, PAL.haze, f);
       for (const side of [-1, 1]) {
         const px = x + side * w;
-        ctx.strokeStyle = col;
-        ctx.lineWidth = Math.max(1.2, 0.11 * s);
+        ctx.strokeStyle = mixHex('#39424f', PAL.haze, f);
+        ctx.lineWidth = Math.max(1.2, 0.09 * s);
         ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px, y - h); ctx.stroke();
+        // 旗はポールから内向きに垂れる
         ctx.fillStyle = col;
-        ellipse(ctx, px, y - h, 0.2 * s, 0.2 * s); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px, y - h);
+        ctx.quadraticCurveTo(px - side * w * 0.34, y - h * 0.94, px - side * w * 0.62, y - h * 0.72);
+        ctx.quadraticCurveTo(px - side * w * 0.3, y - h * 0.76, px, y - h * 0.66);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = mixHex('#ffffff', PAL.haze, f);
+        ellipse(ctx, px, y - h, 0.13 * s, 0.13 * s); ctx.fill();
       }
-      // 上部の旗
-      ctx.fillStyle = rgba(o.scored ? '#8fd18a' : '#ff9f43', (1 - f) * 0.75);
-      ctx.beginPath();
-      ctx.moveTo(x - w, y - h);
-      ctx.lineTo(x + w, y - h);
-      ctx.lineTo(x + w, y - h + 0.42 * s);
-      ctx.lineTo(x - w, y - h + 0.42 * s);
-      ctx.closePath(); ctx.fill();
       ctx.restore();
     }
 
@@ -1976,13 +2276,22 @@ button {
     /* --- 雪と速度演出 --------------------------------------------------- */
     drawSnowfall(flakes, speedRatio) {
       const { ctx, W, H } = this;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      const unit = Math.min(W, H) / 400;
       for (const p of flakes) {
-        const r = p.r * (0.6 + p.d);
-        ctx.globalAlpha = 0.35 + p.d * 0.6;
+        // 手前の粒ほど大きく、輪郭をぼかして薄く。奥行きが出る
+        const r = p.r * (0.45 + p.d * 1.9) * unit;
+        const px = p.x * W, py = p.y * H;
+        ctx.globalAlpha = p.d > 0.86 ? 0.16 : 0.34 + p.d * 0.42;
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.ellipse(p.x * W, p.y * H, r, r * (1 + speedRatio * p.d * 2.5), 0, 0, TAU);
+        ctx.ellipse(px, py, r, r * (1 + speedRatio * p.d * 2.2), 0, 0, TAU);
         ctx.fill();
+        if (p.d > 0.86) {                       // 大粒にだけ、ごく淡いにじみ
+          ctx.globalAlpha = 0.06;
+          ctx.beginPath();
+          ctx.ellipse(px, py, r * 1.9, r * 1.9, 0, 0, TAU);
+          ctx.fill();
+        }
       }
       ctx.globalAlpha = 1;
     }
@@ -2007,13 +2316,28 @@ button {
       ctx.restore();
     }
 
+    buildVignette() {
+      const { W, H, dpr } = this;
+      this.vigKey = `${W}x${H}@${dpr}`;
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(W * dpr));
+      cv.height = Math.max(1, Math.round(H * dpr));
+      const c = cv.getContext('2d');
+      c.scale(dpr, dpr);
+      const g = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.36, W / 2, H / 2, Math.max(W, H) * 0.78);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(10,24,48,1)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, W, H);
+      this.vignette = cv;
+    }
+
     drawVignette(speedRatio, boost) {
       const { ctx, W, H } = this;
-      const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.36, W / 2, H / 2, Math.max(W, H) * 0.78);
-      g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, `rgba(10,24,48,${0.20 + speedRatio * 0.16})`);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, H);
+      if (this.vigKey !== `${W}x${H}@${this.dpr}` || !this.vignette) this.buildVignette();
+      ctx.globalAlpha = 0.20 + speedRatio * 0.16;
+      ctx.drawImage(this.vignette, 0, 0, W, H);
+      ctx.globalAlpha = 1;
       if (boost > 0) {
         const b = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30, W / 2, H / 2, Math.max(W, H) * 0.7);
         b.addColorStop(0, 'rgba(120,200,255,0)');
@@ -2346,7 +2670,7 @@ button {
 
       this.world = new SB.World();
       this.flakes = [];
-      for (let i = 0; i < 90; i++) {
+      for (let i = 0; i < 70; i++) {
         this.flakes.push({ x: Math.random(), y: Math.random(), d: Math.random(), r: 1 + Math.random() * 2.2, drift: Math.random() * TAU });
       }
       this.particles = [];
@@ -3000,6 +3324,7 @@ button {
     resultTitle: $('result-title'), resultScore: $('result-score'),
     resultDistance: $('result-distance'), resultBells: $('result-bells'),
     resultTricks: $('result-tricks'), resultBest: $('result-best'),
+    pad: $('pad'), padBoost: document.querySelector('.pad-boost'),
   };
 
   /* --- UI ------------------------------------------------------------ */
@@ -3014,7 +3339,10 @@ button {
         els[key].classList.toggle('hidden', key !== name);
       }
     },
-    setHud(on) { els.hud.classList.toggle('hidden', !on); },
+    setHud(on) {
+      els.hud.classList.toggle('hidden', !on);
+      els.pad.classList.toggle('hidden', !on);
+    },
 
     updateHud(d) {
       els.score.textContent = fmt(d.score);
@@ -3037,7 +3365,9 @@ button {
         }
       }
       els.boostFill.style.width = `${clamp(d.boost, 0, 100)}%`;
-      els.boostWrap.classList.toggle('ready', d.boost >= 50 || d.boosting);
+      const ready = d.boost >= 50 || d.boosting;
+      els.boostWrap.classList.toggle('ready', ready);
+      els.padBoost.classList.toggle('ready', ready);
     },
 
     showResult(r) {
@@ -3061,6 +3391,7 @@ button {
   /* --- 生成 ---------------------------------------------------------- */
   const renderer = new SB.Renderer($('game'));
   const input = new SB.Input($('touch'));
+  input.bindPad($('pad'));
   const game = new SB.Game(renderer, input, ui);
   SB.game = game;
 

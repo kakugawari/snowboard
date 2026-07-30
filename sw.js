@@ -1,5 +1,5 @@
 /* オフライン用の最小限のキャッシュ。更新時は CACHE の版数を上げる。 */
-const CACHE = 'mofu-snowboard-v2';
+const CACHE = 'mofu-snowboard-v3';
 const ASSETS = [
   './',
   './index.html',

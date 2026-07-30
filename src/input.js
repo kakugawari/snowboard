@@ -27,9 +27,50 @@
       this.moved = 0;
       this.flickBuf = [];     // 直近の縦移動サンプル（フリック判定用）
       this.keys = new Set();
+      this.held = { left: false, right: false, tuck: false };  // 画面ボタン
       this.enabled = true;
 
       this._bind();
+    }
+
+    /* 画面上の操作ボタン。押している間だけ効くもの（data-hold）と、
+       押した瞬間に一度だけ効くもの（data-tap）を同じ仕組みで拾う。 */
+    bindPad(root) {
+      if (!root) return;
+      const press = (btn, on) => {
+        const hold = btn.dataset.hold;
+        if (hold) this.held[hold] = on;
+        btn.classList.toggle('pressed', on);
+      };
+
+      for (const btn of root.querySelectorAll('[data-hold],[data-tap]')) {
+        btn.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          e.stopPropagation();                 // 下の操作レイヤーに渡さない
+          btn.setPointerCapture && btn.setPointerCapture(e.pointerId);
+          press(btn, true);
+          const tap = btn.dataset.tap;
+          if (tap === 'jump') this.jumpQueued = true;
+          if (tap === 'boost') this.boostQueued = true;
+        }, { passive: false });
+
+        const release = (e) => { e.stopPropagation(); press(btn, false); };
+        btn.addEventListener('pointerup', release);
+        btn.addEventListener('pointercancel', release);
+        // 指がボタンの外へ滑ったときに押しっぱなしにならないようにする
+        btn.addEventListener('pointerleave', () => press(btn, false));
+        btn.addEventListener('contextmenu', (e) => e.preventDefault());
+      }
+
+      // 何かの拍子に離した判定を取り逃しても、必ず戻せるようにしておく
+      addEventListener('pointerup', () => this.releaseAll(root));
+      addEventListener('pointercancel', () => this.releaseAll(root));
+      addEventListener('blur', () => this.releaseAll(root));
+    }
+
+    releaseAll(root) {
+      this.held.left = this.held.right = this.held.tuck = false;
+      if (root) for (const b of root.querySelectorAll('.pressed')) b.classList.remove('pressed');
     }
 
     get radius() { return Math.max(70, Math.min(innerWidth, innerHeight) * 0.24); }
@@ -121,25 +162,36 @@
       addEventListener('blur', () => { this.keys.clear(); this.active = false; this.tuck = false; });
     }
 
+    /* 毎フレーム、押されているものだけから状態を作り直す。
+       前の値に OR を重ねると、離しても解除されずに残ってしまう。 */
     update() {
       const k = this.keys;
       let steer = 0;
+      let tuck = false;
+
       if (k.has('ArrowLeft') || k.has('KeyA')) steer -= 1;
       if (k.has('ArrowRight') || k.has('KeyD')) steer += 1;
+      if (this.held.left) steer -= 1;
+      if (this.held.right) steer += 1;
 
-      if (this.active) {
+      // 画面ボタンを使っていないときだけ、ドラッグでの操舵を見る
+      if (this.active && !this.held.left && !this.held.right) {
         const r = this.radius;
         steer = clamp((this.curX - this.originX) / r, -1, 1);
-        const dy = this.curY - this.originY;
-        this.tuck = dy > r * 0.45;
+        tuck = this.curY - this.originY > r * 0.45;
       }
-      this.tuck = this.tuck || k.has('ArrowDown') || k.has('KeyS');
-      this.steer = steer;
+
+      this.tuck = tuck || this.held.tuck || k.has('ArrowDown') || k.has('KeyS');
+      this.steer = clamp(steer, -1, 1);
     }
 
     consumeJump() { const v = this.jumpQueued; this.jumpQueued = false; return v; }
     consumeBoost() { const v = this.boostQueued; this.boostQueued = false; return v; }
-    reset() { this.active = false; this.steer = 0; this.tuck = false; this.jumpQueued = this.boostQueued = false; }
+    reset() {
+      this.active = false; this.steer = 0; this.tuck = false;
+      this.jumpQueued = this.boostQueued = false;
+      this.releaseAll(document.getElementById('pad'));
+    }
   }
 
   SB.Input = Input;

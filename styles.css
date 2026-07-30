@@ -118,12 +118,21 @@ html, body {
 .combo.show { opacity: 1; animation: pop .28s ease-out; }
 @keyframes pop { from { transform: scale(0.7); } to { transform: scale(1); } }
 
-.hud-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 14px; }
+/* 下段は操作ボタンに挟まれるので、中央に寄せて幅を絞る */
+.hud-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: calc(var(--ui) * 0.03);
+  width: min(100%, calc(var(--ui) * 1.1));
+  margin: 0 auto;
+  padding-bottom: calc(var(--ui) * 0.26);   /* 操作ボタンの上に載せる */
+}
 
 .speedo { color: #fff; font-weight: 900; font-size: calc(var(--ui) * 0.062); font-variant-numeric: tabular-nums; }
 .speedo small { font-size: 0.42em; margin-left: 4px; opacity: 0.85; }
 
-.boost-wrap { flex: 1; max-width: 46vw; }
+.boost-wrap { flex: 1; max-width: calc(var(--ui) * 0.5); }
 .boost-bar {
   height: max(10px, calc(var(--ui) * 0.031));
   border-radius: 99px;
@@ -149,6 +158,119 @@ html, body {
 .boost-wrap.ready .boost-fill { background: linear-gradient(90deg, #ffe08a, #ff9f43); }
 .boost-wrap.ready .boost-label { color: var(--warm); animation: blink 0.8s infinite; }
 @keyframes blink { 50% { opacity: 0.35; } }
+
+/* --- 操作ボタン ------------------------------------------------------ */
+#pad {
+  position: fixed;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;      /* 枠は透過。ボタンだけ触れる */
+}
+
+.pad-side {
+  position: absolute;
+  bottom: calc(var(--safe-b) + var(--ui) * 0.035);
+  display: flex;
+  align-items: flex-end;
+  gap: calc(var(--ui) * 0.028);
+}
+.pad-left  { left: calc(var(--safe-l) + var(--ui) * 0.04); }
+.pad-right { right: calc(var(--safe-r) + var(--ui) * 0.04); }
+
+.pad-btn {
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  width: max(60px, calc(var(--ui) * 0.155));
+  height: max(60px, calc(var(--ui) * 0.155));
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.62);
+  background: rgba(255, 255, 255, 0.24);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  box-shadow: 0 6px 18px rgba(12, 34, 70, 0.28);
+  transition: transform .07s, background .12s;
+}
+.pad-btn svg {
+  width: 44%;
+  height: 44%;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 3px rgba(12, 34, 70, 0.45));
+}
+.pad-btn span {
+  font-size: max(9px, calc(var(--ui) * 0.021));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 4px rgba(12, 34, 70, 0.5);
+}
+.pad-btn.pressed,
+.pad-btn:active {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.46);
+}
+
+.pad-jump {
+  width: max(76px, calc(var(--ui) * 0.195));
+  height: max(76px, calc(var(--ui) * 0.195));
+  background: rgba(126, 190, 255, 0.34);
+  border-color: rgba(255, 255, 255, 0.78);
+}
+.pad-boost {
+  width: max(48px, calc(var(--ui) * 0.115));
+  height: max(48px, calc(var(--ui) * 0.115));
+  opacity: 0.42;                       /* ゲージが溜まるまでは控えめ */
+  transition: opacity .2s, transform .07s, background .12s;
+}
+.pad-boost.ready {
+  opacity: 1;
+  background: rgba(255, 196, 92, 0.42);
+  border-color: rgba(255, 226, 160, 0.9);
+  animation: boostPulse 1.1s ease-in-out infinite;
+}
+@keyframes boostPulse {
+  50% { box-shadow: 0 6px 18px rgba(12, 34, 70, 0.28), 0 0 0 8px rgba(255, 208, 120, 0.16); }
+}
+
+/* 画面が低いとき（横向きのスマホ）はボタンを少し詰める */
+@media (max-height: 460px) {
+  .pad-side { bottom: calc(var(--safe-b) + 10px); gap: 10px; }
+  .pad-left  { left: calc(var(--safe-l) + 12px); }
+  .pad-right { right: calc(var(--safe-r) + 12px); }
+  .pad-btn span { display: none; }
+
+  /* 下中央はキャラクターと操作ボタンの居場所なので、計器は上へ逃がす */
+  .hud-bottom {
+    position: absolute;
+    top: calc(var(--safe-t) + 10px);
+    left: 50%;
+    transform: translateX(-50%);
+    width: auto;
+    padding-bottom: 0;
+    align-items: center;
+  }
+  .boost-wrap { width: 34vw; }
+  .boost-label { display: none; }
+}
+
+@media (hover: hover) {
+  .pad-btn:hover { background: rgba(255, 255, 255, 0.36); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pad-boost.ready { animation: none; }
+  .boost-wrap.ready .boost-label { animation: none; }
+}
 
 /* --- スクリーン ------------------------------------------------------ */
 .screen {
@@ -254,6 +376,7 @@ button {
 .howto ul { margin: 10px 0 4px; padding-left: 18px; }
 .howto li { font-size: 13px; line-height: 1.75; color: var(--ink-soft); }
 .howto b { color: var(--ink); }
+.howto .tip { margin: 8px 0 2px; font-size: 12px; font-weight: 700; color: var(--accent-d); }
 
 .toggles { display: flex; gap: 8px; margin-top: 14px; }
 .toggle {

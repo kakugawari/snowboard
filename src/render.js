@@ -9,12 +9,16 @@
   const C = SB.C;
 
   const PAL = {
-    skyTop: '#3d6fb5',
-    skyMid: '#86b3e0',
-    skyLow: '#cfe0f2',
+    skyTop: '#2c62ac',
+    skyMid: '#7fb0e2',
+    skyLow: '#cfe1f2',
+    skyWarm: '#eef0ec',   // 地平線ぎわ。わずかに暖色へ振る
     haze: '#dfe9f5',
     sun: '#fff6d8',
     snow: '#f4f8fd',
+    sunlit: '#fffdf4',      // 日の当たる雪（わずかに暖色）
+    snowDeep: '#b9cee8',    // 落ち込んだ面の影（青）
+    foreCool: '#a8c4e2',    // 足元。寒色に沈めて中景を引き立てる
     snowShade: '#dce8f6',
     piste: '#ffffff',
     pisteAlt: '#eaf2fc',
@@ -55,9 +59,13 @@
     /* --- カメラ ------------------------------------------------------- */
     setCamera(cam) {
       this.cam = cam;
-      this.focal = this.H * 0.78 * cam.fov;
+      // 横長の画面では H が小さくなり、H だけを基準にすると全体が縮んで
+      // しまう。横幅も見て、寄り気味の画角にする。
+      this.focal = Math.max(this.H * 0.78, this.W * 0.50) * cam.fov;
       this.horizon = this.H * 0.44 + cam.pitch * this.H + cam.shakeY;
       this.cx = this.W * 0.5 + cam.shakeX;
+      // 遠景の山も H 基準だと横長で潰れるので、画面比に応じて持ち上げる
+      this.skyScale = 1 + 0.42 * clamp(this.W / this.H - 0.8, 0, 1.6);
     }
 
     project(x, y, z) {
@@ -78,25 +86,62 @@
       const { ctx, W, H } = this;
       const hz = this.horizon;
 
-      const g = ctx.createLinearGradient(0, 0, 0, Math.max(hz, 10));
+      /* 空は上ほど濃い青、地平線に近づくほど淡く暖かい。上下だけでなく
+         「太陽の側が暖かい」ことまで描くと、時間帯のある空気になる。 */
+      const skyH = Math.max(hz, 10);
+      const g = ctx.createLinearGradient(0, 0, 0, skyH);
       g.addColorStop(0, PAL.skyTop);
-      g.addColorStop(0.55, PAL.skyMid);
-      g.addColorStop(1, PAL.skyLow);
+      g.addColorStop(0.42, PAL.skyMid);
+      g.addColorStop(0.82, PAL.skyLow);
+      g.addColorStop(1, PAL.skyWarm);
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, W, Math.max(hz, 0));
       if (hz < 0) { ctx.fillStyle = PAL.skyLow; ctx.fillRect(0, 0, W, H); }
 
-      // 太陽とその光暈
       const sx = W * 0.74 - this.cam.x * 1.2;
-      const sy = hz - H * 0.30;
-      const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, H * 0.42);
-      glow.addColorStop(0, 'rgba(255,250,225,0.95)');
-      glow.addColorStop(0.16, 'rgba(255,244,205,0.45)');
-      glow.addColorStop(1, 'rgba(255,240,200,0)');
-      ctx.fillStyle = glow;
-      ctx.fillRect(0, 0, W, Math.max(hz, 0));
-      ctx.fillStyle = PAL.sun;
-      ellipse(ctx, sx, sy, H * 0.035, H * 0.035); ctx.fill();
+      const sy = Math.max(H * 0.14, hz - H * 0.30 * this.skyScale);
+      this.sunX = sx; this.sunY = sy;
+
+      // 光暈は2枚重ね。広く淡いものと、芯の近くの濃いもの
+      const gr = Math.max(W, H) * 0.42;
+      const wide = ctx.createRadialGradient(sx, sy, 0, sx, sy, gr);
+      wide.addColorStop(0, 'rgba(255,246,214,0.46)');
+      wide.addColorStop(0.35, 'rgba(255,240,200,0.16)');
+      wide.addColorStop(1, 'rgba(255,236,190,0)');
+      ctx.fillStyle = wide;
+      ctx.fillRect(sx - gr, Math.max(0, sy - gr), gr * 2, Math.min(hz, sy + gr) - Math.max(0, sy - gr));
+
+      // 光の筋。太陽から扇状に薄く伸ばす
+      if (hz > 0) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(0, 0, W, hz);
+        ctx.clip();
+        const rays = 5;
+        const reach = Math.max(W, H) * 0.85;
+        for (let i = 0; i < rays; i++) {
+          const a = 1.18 + i * 0.19 + Math.sin(t * 0.08 + i) * 0.012;
+          const spread = 0.030 + (i % 3) * 0.012;
+          ctx.fillStyle = `rgba(255,248,226,${0.055 + (i % 2) * 0.03})`;
+          ctx.beginPath();
+          ctx.moveTo(sx, sy);
+          ctx.lineTo(sx + Math.cos(a - spread) * reach, sy + Math.sin(a - spread) * reach);
+          ctx.lineTo(sx + Math.cos(a + spread) * reach, sy + Math.sin(a + spread) * reach);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      const core = ctx.createRadialGradient(sx, sy, 0, sx, sy, H * 0.165 * this.skyScale);
+      core.addColorStop(0, 'rgba(255,253,240,0.98)');
+      core.addColorStop(0.22, 'rgba(255,247,215,0.6)');
+      core.addColorStop(1, 'rgba(255,242,200,0)');
+      const cr = H * 0.17 * this.skyScale;
+      ctx.fillStyle = core;
+      ctx.fillRect(sx - cr, sy - cr, cr * 2, cr * 2);
+      ctx.fillStyle = '#fffdf2';
+      ellipse(ctx, sx, sy, H * 0.032 * this.skyScale, H * 0.032 * this.skyScale); ctx.fill();
 
       // 雲
       for (const c of world.clouds) {
@@ -104,7 +149,7 @@
         if (c.x > 1.3) c.x = -0.3;
         const cxp = c.x * W * 1.4 - W * 0.2 - this.cam.x * 2.4;
         const cyp = c.y * hz;
-        this.cloud(cxp, cyp, c.s * H * 0.05, c.puffs, c.seed);
+        this.cloud(cxp, cyp, c.s * H * 0.055 * this.skyScale, c.puffs, c.seed, sx);
       }
 
       // 鳥（小さな動き。風景に生き物がいると印象が変わる）
@@ -126,19 +171,46 @@
       this.drawRanges(world);
     }
 
-    cloud(x, y, r, puffs, seed) {
+    /* 雲は白い塊ではなく、下側の影・白い本体・太陽側の縁の3層で描く。
+       この3層があるだけで、平面的な楕円が立体になる。 */
+    cloud(x, y, r, puffs, seed, sunX) {
       const ctx = this.ctx;
-      ctx.fillStyle = 'rgba(255,255,255,0.82)';
-      for (let i = 0; i < puffs; i++) {
+      const lobe = (i) => {
         const a = seed + i * 1.7;
-        const px = x + (i - puffs / 2) * r * 0.85;
-        const py = y + Math.sin(a) * r * 0.18;
-        ellipse(ctx, px, py, r * (0.7 + (Math.sin(a * 3) + 1) * 0.3), r * 0.5);
+        return {
+          x: x + (i - puffs / 2) * r * 0.82,
+          y: y + Math.sin(a) * r * 0.16,
+          rx: r * (0.72 + (Math.sin(a * 3) + 1) * 0.28),
+          ry: r * 0.5,
+        };
+      };
+
+      // 影（下にずらした同じ形）
+      ctx.fillStyle = 'rgba(176,196,222,0.55)';
+      for (let i = 0; i < puffs; i++) {
+        const l = lobe(i);
+        ellipse(ctx, l.x, l.y + r * 0.20, l.rx * 0.96, l.ry * 0.92);
         ctx.fill();
       }
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ellipse(ctx, x, y + r * 0.28, r * puffs * 0.42, r * 0.34);
-      ctx.fill();
+      ctx.fillStyle = 'rgba(186,205,229,0.5)';
+      ellipse(ctx, x, y + r * 0.34, r * puffs * 0.4, r * 0.3); ctx.fill();
+
+      // 本体
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      for (let i = 0; i < puffs; i++) {
+        const l = lobe(i);
+        ellipse(ctx, l.x, l.y, l.rx, l.ry);
+        ctx.fill();
+      }
+
+      // 太陽の側だけ縁を暖色に光らせる
+      const dir = sunX !== undefined && sunX < x ? -1 : 1;
+      ctx.fillStyle = 'rgba(255,252,242,0.42)';
+      for (let i = 0; i < puffs; i++) {
+        const l = lobe(i);
+        ellipse(ctx, l.x + dir * l.rx * 0.16, l.y - l.ry * 0.22, l.rx * 0.68, l.ry * 0.5);
+        ctx.fill();
+      }
     }
 
     /* 山脈は形が変わらないので、一度オフスクリーンに描いて毎フレーム貼るだけに
@@ -146,9 +218,10 @@
     buildRanges(world) {
       const { W, H, dpr } = this;
       this.rangeKey = `${W}x${H}@${dpr}`;
+      const skyScale = this.skyScale || 1;
       this.rangeArt = world.ranges.map((R) => {
         const spanW = Math.round(W * 2.4);
-        const peakH = H * R.height;
+        const peakH = H * R.height * skyScale;
         const pad = Math.round(H * 0.06);           // 裾の森が下へはみ出すぶん
         const h = Math.ceil(peakH * 1.05 + pad);
         const cv = document.createElement('canvas');
@@ -218,7 +291,7 @@
           for (let i = 0; i <= steps; i++) {
             const t = i / steps;
             const xx = lerp(at(left, snowY), at(right, snowY), t);
-            const yy = snowY - (i % 2 ? 1 : -1) * p.jag[Math.min(i, steps - 1)] * peakH * 0.06;
+            const yy = snowY - (i % 2 ? 1 : -1) * p.jag[Math.min(i, steps - 1)] * peakH * 0.10;
             snow.lineTo(xx, yy);
           }
           snow.lineTo(at(right, snowY), snowY);
@@ -235,7 +308,7 @@
           c.restore();
 
           // 谷筋。稜線から流れ落ちる影で、白い面が平板にならないようにする
-          c.fillStyle = rgba(shade, 0.38);
+          c.fillStyle = rgba(shade, 0.5);
           for (let g = 0; g < p.gullies.length; g++) {
             const gx = ax + (p.gullies[g] - 0.5) * pw * 1.3;
             const top = ay + peakH * 0.04 * (g + 1);
@@ -331,12 +404,15 @@
       if (dz < 1.0) return null;
       const s = this.focal / dz;
       const cxw = SB.centerX(z);
+      // 前後の高さの差＝斜面の向き。光は上から当たるので、せり上がる面は
+      // 明るく、落ち込む面は影になる。これで雪面のうねりが見えるようになる。
+      const slope = (SB.terrainY(z + C.SEG_LEN) - SB.terrainY(z)) / C.SEG_LEN;
       return {
         z,
         x: this.cx + (cxw - this.cam.x) * s,
         y: this.horizon + (this.cam.y - SB.terrainY(z)) * s,
         w: half * s,
-        s, dz,
+        s, dz, slope,
         fog: this.fog(dz),
       };
     }
@@ -349,13 +425,25 @@
          見えてしまうので薄く、中距離だけはっきりさせて速度感を出す。 */
       const stripe = (idx % 2) ? clamp((n.dz - 4) / 16, 0, 1) * 0.34 : 0;
 
+      /* 斜面の向きで明るさを変える。せり上がる面は日を受けて白く、
+         落ち込む面は陰る。平らな白い板が、うねる雪面に見えてくる。 */
+      const light = clamp(n.slope * 3.4, -1, 1);
+      // 足元は少し寒色に沈める。中景の明るさが引き立ち、奥行きも出る
+      const nearCool = clamp((14 - n.dz) / 12, 0, 1) * 0.30;
+      const snowTone = light >= 0
+        ? mixHex(PAL.snow, PAL.sunlit, light * 0.55)
+        : mixHex(PAL.snow, PAL.snowDeep, -light * 0.85);
+      const pisteTone = light >= 0
+        ? mixHex(PAL.piste, PAL.sunlit, light * 0.5)
+        : mixHex(PAL.piste, PAL.snowDeep, -light * 0.8);
+
       // 一面の雪原（ゲレンデの塗りに完全に隠れる手前の区画では省略する）
       const m = W * 0.07;   // カメラロールで少し広く描いている分の余白
       const covered = n.x - n.w < -m && n.x + n.w > W + m
                    && f.x - f.w < -m && f.x + f.w > W + m;
       if (!covered) {
       const wide = 120;
-      ctx.fillStyle = mixHex(mixHex(PAL.snow, PAL.snowShade, stripe * 0.55), PAL.haze, n.fog);
+      ctx.fillStyle = mixHex(mixHex(mixHex(snowTone, PAL.snowShade, stripe * 0.55), PAL.foreCool, nearCool), PAL.haze, n.fog);
       ctx.beginPath();
       ctx.moveTo(n.x - wide * n.s, n.y);
       ctx.lineTo(f.x - wide * f.s, f.y);
@@ -366,7 +454,7 @@
       }
 
       // 圧雪バーン（横縞が流れることで速度が読める）
-      ctx.fillStyle = mixHex(mixHex(PAL.piste, PAL.pisteAlt, stripe), PAL.haze, n.fog);
+      ctx.fillStyle = mixHex(mixHex(mixHex(pisteTone, PAL.pisteAlt, stripe), PAL.foreCool, nearCool), PAL.haze, n.fog);
       ctx.beginPath();
       ctx.moveTo(n.x - n.w, n.y);
       ctx.lineTo(f.x - f.w, f.y);
@@ -378,8 +466,8 @@
       /* 圧雪車が刻んだ溝。フォールラインに沿って走るので、遠近の手掛かりに
          なる。1本ずつ線を引くと本数ぶん命令が増えるため、区画ごとに細い
          台形をまとめて1回で塗る。 */
-      if (n.dz < 52 && n.s > 0.9) {
-        const fade = clamp((52 - n.dz) / 30, 0, 1) * (1 - n.fog);
+      if (n.dz < 44 && n.s > 0.9) {
+        const fade = clamp((44 - n.dz) / 26, 0, 1) * (1 - n.fog);
         ctx.fillStyle = `rgba(196,214,236,${0.20 * fade})`;
         ctx.beginPath();
         const step = 0.4, gw = 0.085;         // 溝の間隔と幅(m)
@@ -459,17 +547,27 @@
       if (nearFade < 1) ctx0.restore();
     }
 
+    /* 落ち影。光は右上から来ているので、影は左手前へ長く伸びる。
+       接地点に丸を置くだけより、物が地面に立っている感じが強く出る。 */
+    castShadow(x, y, h, f, wide) {
+      const ctx = this.ctx;
+      const len = h * 0.9;
+      ctx.fillStyle = `rgba(122,155,196,${0.30 * (1 - f)})`;
+      ellipse(ctx, x - len * 0.34, y + h * 0.012, len * 0.5, (wide || h * 0.1), -0.13);
+      ctx.fill();
+    }
+
     /* 針葉樹。鋭い三角形を重ねるのではなく、裾が丸く垂れた段を重ね、
        その上に雪を厚く載せる。雪の量で「ぼってり感」が決まる。 */
     pine(x, y, s, f, o) {
       const ctx = this.ctx;
       const h = 5.2 * s, w = 1.8 * s;
       const sway = Math.sin(o.phase) * 0.02 * h;
+
+      this.castShadow(x, y, h * 0.62, f, w * 0.34);
+
       ctx.save();
       ctx.translate(x, y);
-
-      ctx.fillStyle = rgba('#8aa4c4', 0.26 * (1 - f));
-      ellipse(ctx, 0, 0, w * 1.0, w * 0.3); ctx.fill();
 
       ctx.fillStyle = mixHex(PAL.trunk, PAL.haze, f);
       ctx.fillRect(-w * 0.08, -h * 0.26, w * 0.16, h * 0.26);
@@ -542,8 +640,7 @@
       const roof = 2.3 * s * (o.scale || 1);
       const warm = o.warm || '#b5613f';
 
-      ctx.fillStyle = rgba('#8aa4c4', 0.22 * (1 - f));
-      ellipse(ctx, 0 + x, y, w * 1.25, w * 0.3); ctx.fill();
+      this.castShadow(x, y, (wall + roof) * 0.8, f, w * 0.34);
 
       // 壁
       ctx.fillStyle = mixHex('#c99b6e', PAL.haze, f);
@@ -614,8 +711,7 @@
     rock(x, y, s, f, o) {
       const ctx = this.ctx;
       const r = 1.25 * s;
-      ctx.fillStyle = rgba('#8aa4c4', 0.3 * (1 - f));
-      ellipse(ctx, x, y, r * 1.05, r * 0.3); ctx.fill();
+      this.castShadow(x, y, r * 1.1, f, r * 0.3);
       ctx.fillStyle = mixHex(PAL.rockDark, PAL.haze, f);
       ctx.beginPath();
       ctx.moveTo(x - r, y);
@@ -659,8 +755,7 @@
     snowman(x, y, s, f) {
       const ctx = this.ctx;
       const r = 0.62 * s;
-      ctx.fillStyle = rgba('#8aa4c4', 0.3 * (1 - f));
-      ellipse(ctx, x, y, r * 1.5, r * 0.4); ctx.fill();
+      this.castShadow(x, y, r * 3.0, f, r * 0.42);
       const body = mixHex('#ffffff', PAL.haze, f);
       const shade = mixHex(PAL.snowShade, PAL.haze, f);
       ctx.fillStyle = shade; ellipse(ctx, x, y - r, r * 1.25, r * 1.15); ctx.fill();
@@ -712,23 +807,23 @@
       ctx.save();
       ctx.globalAlpha *= near;
       const h = 2.0 * s, w = o.w * s;
-      const col = mixHex(o.scored ? '#8fd18a' : '#ff9f43', PAL.haze, f);
+      const base = o.scored ? '#7fc98a' : '#e8573f';
+      const col = mixHex(base, PAL.haze, f);
       for (const side of [-1, 1]) {
         const px = x + side * w;
-        ctx.strokeStyle = col;
-        ctx.lineWidth = Math.max(1.2, 0.11 * s);
+        ctx.strokeStyle = mixHex('#39424f', PAL.haze, f);
+        ctx.lineWidth = Math.max(1.2, 0.09 * s);
         ctx.beginPath(); ctx.moveTo(px, y); ctx.lineTo(px, y - h); ctx.stroke();
+        // 旗はポールから内向きに垂れる
         ctx.fillStyle = col;
-        ellipse(ctx, px, y - h, 0.2 * s, 0.2 * s); ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(px, y - h);
+        ctx.quadraticCurveTo(px - side * w * 0.34, y - h * 0.94, px - side * w * 0.62, y - h * 0.72);
+        ctx.quadraticCurveTo(px - side * w * 0.3, y - h * 0.76, px, y - h * 0.66);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = mixHex('#ffffff', PAL.haze, f);
+        ellipse(ctx, px, y - h, 0.13 * s, 0.13 * s); ctx.fill();
       }
-      // 上部の旗
-      ctx.fillStyle = rgba(o.scored ? '#8fd18a' : '#ff9f43', (1 - f) * 0.75);
-      ctx.beginPath();
-      ctx.moveTo(x - w, y - h);
-      ctx.lineTo(x + w, y - h);
-      ctx.lineTo(x + w, y - h + 0.42 * s);
-      ctx.lineTo(x - w, y - h + 0.42 * s);
-      ctx.closePath(); ctx.fill();
       ctx.restore();
     }
 
@@ -867,13 +962,22 @@
     /* --- 雪と速度演出 --------------------------------------------------- */
     drawSnowfall(flakes, speedRatio) {
       const { ctx, W, H } = this;
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      const unit = Math.min(W, H) / 400;
       for (const p of flakes) {
-        const r = p.r * (0.6 + p.d);
-        ctx.globalAlpha = 0.35 + p.d * 0.6;
+        // 手前の粒ほど大きく、輪郭をぼかして薄く。奥行きが出る
+        const r = p.r * (0.45 + p.d * 1.9) * unit;
+        const px = p.x * W, py = p.y * H;
+        ctx.globalAlpha = p.d > 0.86 ? 0.16 : 0.34 + p.d * 0.42;
+        ctx.fillStyle = '#ffffff';
         ctx.beginPath();
-        ctx.ellipse(p.x * W, p.y * H, r, r * (1 + speedRatio * p.d * 2.5), 0, 0, TAU);
+        ctx.ellipse(px, py, r, r * (1 + speedRatio * p.d * 2.2), 0, 0, TAU);
         ctx.fill();
+        if (p.d > 0.86) {                       // 大粒にだけ、ごく淡いにじみ
+          ctx.globalAlpha = 0.06;
+          ctx.beginPath();
+          ctx.ellipse(px, py, r * 1.9, r * 1.9, 0, 0, TAU);
+          ctx.fill();
+        }
       }
       ctx.globalAlpha = 1;
     }
@@ -898,13 +1002,28 @@
       ctx.restore();
     }
 
+    buildVignette() {
+      const { W, H, dpr } = this;
+      this.vigKey = `${W}x${H}@${dpr}`;
+      const cv = document.createElement('canvas');
+      cv.width = Math.max(1, Math.round(W * dpr));
+      cv.height = Math.max(1, Math.round(H * dpr));
+      const c = cv.getContext('2d');
+      c.scale(dpr, dpr);
+      const g = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.36, W / 2, H / 2, Math.max(W, H) * 0.78);
+      g.addColorStop(0, 'rgba(0,0,0,0)');
+      g.addColorStop(1, 'rgba(10,24,48,1)');
+      c.fillStyle = g;
+      c.fillRect(0, 0, W, H);
+      this.vignette = cv;
+    }
+
     drawVignette(speedRatio, boost) {
       const { ctx, W, H } = this;
-      const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.36, W / 2, H / 2, Math.max(W, H) * 0.78);
-      g.addColorStop(0, 'rgba(0,0,0,0)');
-      g.addColorStop(1, `rgba(10,24,48,${0.20 + speedRatio * 0.16})`);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, W, H);
+      if (this.vigKey !== `${W}x${H}@${this.dpr}` || !this.vignette) this.buildVignette();
+      ctx.globalAlpha = 0.20 + speedRatio * 0.16;
+      ctx.drawImage(this.vignette, 0, 0, W, H);
+      ctx.globalAlpha = 1;
       if (boost > 0) {
         const b = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.30, W / 2, H / 2, Math.max(W, H) * 0.7);
         b.addColorStop(0, 'rgba(120,200,255,0)');

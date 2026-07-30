@@ -24,7 +24,7 @@
 
       this.world = new SB.World();
       this.flakes = [];
-      for (let i = 0; i < 90; i++) {
+      for (let i = 0; i < 70; i++) {
         this.flakes.push({ x: Math.random(), y: Math.random(), d: Math.random(), r: 1 + Math.random() * 2.2, drift: Math.random() * TAU });
       }
       this.particles = [];

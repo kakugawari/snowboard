@@ -24,7 +24,7 @@
   }
   // コースの中心線（蛇行）
   function centerX(z) {
-    return 11 * Math.sin(z * 0.0043) + 4.5 * Math.sin(z * 0.0117 + 1.3);
+    return 14 * Math.sin(z * 0.0041) + 5.5 * Math.sin(z * 0.0113 + 1.3);
   }
 
   class World {
@@ -69,11 +69,14 @@
       this.ranges = [
         // 尖った針ではなく幅のある山塊にする。奥ほど霞ませ、色差も小さくする
         { peaks: makePeaks(6, 0.50, 1.00, 0.16, 0.28), height: 0.32, depth: 0.13, fog: 0.30,
-          lit: '#f2f8fd', shade: '#8fabd2', rock: '#6d89b4', forest: '#63809f' },
+          lit: '#f2f8fd', shade: '#8fabd2', rock: '#5c7ba9', forest: '#63809f' },
         { peaks: makePeaks(8, 0.42, 0.80, 0.12, 0.22), height: 0.24, depth: 0.30, fog: 0.16,
-          lit: '#edf5fc', shade: '#7091c1', rock: '#4e719f', forest: '#456188' },
+          lit: '#edf5fc', shade: '#7091c1', rock: '#3e6491', forest: '#456188' },
         { peaks: makePeaks(10, 0.30, 0.62, 0.10, 0.17), height: 0.17, depth: 0.58, fog: 0.06,
-          lit: '#e8f2fb', shade: '#5b7dae', rock: '#3a5c8d', forest: '#33507c' },
+          lit: '#e8f2fb', shade: '#5b7dae', rock: '#2d5080', forest: '#33507c' },
+        // 地平線際のなだらかな丘。雪原と山脈のあいだを埋める
+        { peaks: makePeaks(13, 0.22, 0.50, 0.07, 0.13), height: 0.105, depth: 0.86, fog: 0.02,
+          lit: '#f0f7fd', shade: '#93b0d4', rock: '#7d9cc4', forest: '#2f4b6b' },
       ];
       this.clouds = [];
       for (let i = 0; i < 9; i++) {
