@@ -72,17 +72,26 @@
   </div>
 </div>
 
-<!-- タイトル -->
+<!-- タイトル。col でくくった2つのまとまりは、縦画面では display:contents で
+     消えるので並びは変わらず、横画面だけ2段組みになる -->
 <div class="screen" id="screen-title">
   <div class="card">
-    <div class="logo">
-      <span class="logo-sub">MOFUMOFU</span>
-      <h1>もふもふ<br>スノーボード</h1>
+    <div class="col">
+      <div class="logo">
+        <span class="logo-sub">MOFUMOFU</span>
+        <h1>もふもふ<br>スノーボード</h1>
+      </div>
+      <p class="lead">ぬいぐるみのクマと、雪山をひとすべり。</p>
+      <div class="best" id="title-best"></div>
     </div>
-    <p class="lead">ぬいぐるみのクマと、雪山をひとすべり。</p>
-    <button class="primary" id="btn-start">スタート</button>
-    <button class="ghost" id="btn-shop">🔔 そうび <span id="title-coins">0</span></button>
-    <div class="best" id="title-best"></div>
+    <div class="col">
+      <button class="primary" id="btn-start">スタート</button>
+      <button class="ghost" id="btn-shop">🔔 そうび <span id="title-coins">0</span></button>
+      <div class="toggles">
+        <button class="toggle on" id="btn-sound">🔊 サウンド</button>
+        <button class="toggle on" id="btn-haptics">📳 振動</button>
+      </div>
+    </div>
     <details class="howto">
       <summary>あそびかた</summary>
       <ul>
@@ -96,10 +105,6 @@
       </ul>
       <p class="tip">横向きの画面がおすすめです。</p>
     </details>
-    <div class="toggles">
-      <button class="toggle on" id="btn-sound">🔊 サウンド</button>
-      <button class="toggle on" id="btn-haptics">📳 振動</button>
-    </div>
   </div>
 </div>
 
@@ -126,18 +131,22 @@
 <!-- リザルト -->
 <div class="screen hidden" id="screen-result">
   <div class="card">
-    <h2 id="result-title">ゴール！</h2>
-    <div class="result-score" id="result-score">0</div>
-    <div class="result-grid">
-      <div><span>きょり</span><b id="result-distance">0 m</b></div>
-      <div><span>鈴</span><b id="result-bells">0</b></div>
-      <div><span>トリック</span><b id="result-tricks">0</b></div>
-      <div><span>ベスト</span><b id="result-best">0</b></div>
+    <div class="col">
+      <h2 id="result-title">ゴール！</h2>
+      <div class="result-score" id="result-score">0</div>
+      <div class="earned">🔔 <b id="result-earned">+0</b> <span>手持ち <i id="result-coins">0</i></span></div>
     </div>
-    <div class="earned">🔔 <b id="result-earned">+0</b> <span>手持ち <i id="result-coins">0</i></span></div>
-    <button class="primary" id="btn-retry">もういちど</button>
-    <button class="ghost" id="btn-shop2">そうびを見る</button>
-    <button class="ghost" id="btn-title">タイトルへ</button>
+    <div class="col">
+      <div class="result-grid">
+        <div><span>きょり</span><b id="result-distance">0 m</b></div>
+        <div><span>鈴</span><b id="result-bells">0</b></div>
+        <div><span>トリック</span><b id="result-tricks">0</b></div>
+        <div><span>ベスト</span><b id="result-best">0</b></div>
+      </div>
+      <button class="primary" id="btn-retry">もういちど</button>
+      <button class="ghost" id="btn-shop2">そうびを見る</button>
+      <button class="ghost" id="btn-title">タイトルへ</button>
+    </div>
   </div>
 </div>
 

@@ -298,7 +298,7 @@ html, body {
 
 .card {
   width: min(420px, 92vw);
-  max-height: 92vh;
+  max-height: 100%;
   overflow-y: auto;
   background: var(--card);
   backdrop-filter: blur(16px);
@@ -534,4 +534,62 @@ button {
   .shop-buy { min-width: 62px; padding: 7px 8px; font-size: 12px; }
   .result-grid { grid-template-columns: repeat(4, 1fr); }
   .earned { margin-bottom: 10px; font-size: 16px; }
+}
+
+/* 2段組みのためのまとまり。縦画面では箱を消して、以前と同じ縦並びに戻す */
+.col { display: contents; }
+
+/* 横向き（画面が低い）ときのカード。縦に積むと入りきらないので、
+   余っている横幅を使って2段組みにする。
+   .card や .toggles の既定より後ろに置かないと打ち消されるため末尾に置く。 */
+@media (max-height: 520px) {
+  #screen-title .card,
+  #screen-result .card {
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    column-gap: 20px;
+    row-gap: 8px;
+    align-items: center;
+    width: min(720px, 94vw);
+    text-align: left;
+  }
+  #screen-title .col,
+  #screen-result .col {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 8px;
+    min-width: 0;
+  }
+  #screen-title .howto { grid-column: 1 / -1; margin-top: 0; }
+
+  #screen-title h1 { font-size: 25px; line-height: 1.15; }
+  #screen-title .logo-sub { font-size: 10px; margin-bottom: 3px; }
+  #screen-title .lead { margin: 0; font-size: 12px; }
+  #screen-title .best { margin: 0; }
+  #screen-title .toggles { margin: 0; }
+  #screen-title .primary { padding: 13px; font-size: 17px; }
+  #screen-title .ghost { margin: 0; padding: 10px; }
+  #screen-title .howto ul { columns: 2; column-gap: 18px; margin: 8px 0 2px; }
+  #screen-title .howto li { font-size: 11px; line-height: 1.6; break-inside: avoid; }
+  #screen-title .howto .tip { margin: 4px 0 0; }
+
+  #screen-result h2 { margin: 0; font-size: 20px; }
+  #screen-result .result-score { margin: 0; font-size: 44px; }
+  #screen-result .earned { margin: 0; font-size: 16px; }
+  #screen-result .result-grid { grid-template-columns: 1fr 1fr; gap: 7px; margin: 0; }
+  #screen-result .result-grid > div { padding: 7px 8px; }
+  #screen-result .result-grid b { font-size: 16px; }
+  #screen-result .primary { padding: 12px; font-size: 16px; }
+  #screen-result .ghost { margin: 0; padding: 9px; font-size: 13px; }
+}
+
+/* 高さに余裕がない画面では、そうび一覧を詰めて「とじる」まで収める */
+@media (max-height: 660px) {
+  #screen-shop .lead { display: none; }
+  #screen-shop .shop-list { gap: 6px; margin-bottom: 10px; }
+  #screen-shop .shop-item { padding: 7px 10px; }
+  #screen-shop .pips { margin-top: 3px; }
+  #screen-shop .pips i { height: 4px; }
+  #screen-shop .wallet { margin-bottom: 0; }
 }
