@@ -8,7 +8,7 @@
   const CAM_BACK = 6.4;    // カメラは何m後ろか
   const CAM_HEIGHT = 3.0;
   const GRAVITY = 22;
-  const MAX_HEARTS = 3;
+  const BASE_HEARTS = 3;
 
   const TRICK_NAMES = { 1: 'SPIN 360°', 2: 'SPIN 720°', 3: 'SPIN 1080°', 4: 'SPIN 1440°' };
 
@@ -44,6 +44,8 @@
       this.floaters = [];
       this.sprayAcc = 0;
       this.punch = 0;
+      this.magnetRange = 3.2 * (1 + SB.shop.lv('magnet') * 0.35);
+      this.boostGain = 1 + SB.shop.lv('boost') * 0.30;
       this.demo = !!demo;
       this.p = {
         x: 0, z: 0, y: 0, vy: 0, vx: 0,
@@ -58,7 +60,8 @@
       this.comboTimer = 0;
       this.bells = 0;
       this.tricks = 0;
-      this.hearts = MAX_HEARTS;
+      this.maxHearts = BASE_HEARTS + SB.shop.lv('heart');
+      this.hearts = this.maxHearts;
       this.boost = 0;          // 0..100 のゲージ
       this.boostTime = 0;
       this.slick = 0;          // アイスバーンの残り時間
@@ -79,14 +82,27 @@
 
     gameOver() {
       this.state = 'over';
+      const earned = Math.floor(this.bells);
+      SB.shop.addCoins(earned);
       const isBest = this.score > this.best;
       if (isBest) { this.best = this.score; store.set('sb_best', Math.floor(this.score)); }
       if (this.distance > this.bestDist) { this.bestDist = this.distance; store.set('sb_bestdist', Math.floor(this.distance)); }
       this.ui.showResult({
         score: this.score, distance: this.distance, bells: this.bells,
         tricks: this.tricks, best: this.best, isBest,
+        earned, coins: SB.shop.coins,
       });
       this.ui.setHud(false);
+    }
+
+    /* 途中でやめたときも、拾った鈴は持ち帰れるようにする。
+       ここで渡さないと「やめると鈴が消える」不具合に見える。 */
+    abandonRun() {
+      if (this.state !== 'run' && this.state !== 'paused') return 0;
+      const earned = Math.floor(this.bells);
+      if (earned > 0) SB.shop.addCoins(earned);
+      this.bells = 0;
+      return earned;
     }
 
     togglePause() {
@@ -124,7 +140,7 @@
       /* 速度 */
       const diffRamp = clamp(p.z / 2200, 0, 1);
       const offPiste = Math.abs(p.x) > C.PISTE_HALF;
-      let target = 13 + diffRamp * 13;
+      let target = 13 + diffRamp * 13 + SB.shop.lv('speed') * 1.6;
       if (this.demo) target = 11;
       if (tuck) target += 6;
       if (offPiste) target -= 7.5;
@@ -258,7 +274,7 @@
       if (!this.demo) {
         this.ui.updateHud({
           score: this.score, distance: this.distance, speed: p.speed * 3.6,
-          combo: this.combo, hearts: this.hearts, boost: this.boost,
+          combo: this.combo, hearts: this.hearts, maxHearts: this.maxHearts, boost: this.boost,
           boosting: this.boostTime > 0,
         });
       }
@@ -267,7 +283,7 @@
     jump() {
       const p = this.p;
       p.air = true;
-      p.vy = 7.2 + p.speed * 0.07;
+      p.vy = (7.2 + p.speed * 0.07) * (1 + SB.shop.lv('jump') * 0.11);
       p.airTime = 0;
       p.grabbed = 0;
       p.squash = 1.12;
@@ -292,7 +308,7 @@
         const pts = 150 * rot * rot * Math.max(1, this.combo);
         this.addScore(pts);
         this.popup(name, '#ffd25e', pts);
-        this.boost = Math.min(100, this.boost + 12 * rot);
+        this.boost = Math.min(100, this.boost + 12 * rot * this.boostGain);
         this.tricks += rot;
         SB.audio.trick(rot);
         this.bumpCombo();
@@ -301,7 +317,7 @@
         const air = Math.floor(p.airTime * 100) * (p.grabbed > 0.3 ? 2 : 1);
         this.addScore(air);
         if (p.grabbed > 0.3) { this.popup('GRAB!', '#8fd18a', air); this.tricks++; }
-        this.boost = Math.min(100, this.boost + p.airTime * 8);
+        this.boost = Math.min(100, this.boost + p.airTime * 8 * this.boostGain);
       }
       p.spin = 0;
       p.spinVel = 0;
@@ -312,7 +328,7 @@
     tryBoost() {
       if (this.boost < 50 || this.boostTime > 0) return;
       this.boost -= 50;
-      this.boostTime = 2.6;
+      this.boostTime = 2.6 + SB.shop.lv('boost') * 0.45;
       this.shake = 0.5;
       this.flash(0.35, '#bfe6ff');
       this.spray(24, 2.2);
@@ -348,11 +364,12 @@
              判定側で十分広く取ってあるので、寄せる必要がない。
              範囲を絞っているのは、列の鈴がまとめて寄って重なり、
              並びが崩れて見えるのを防ぐため。 */
-          if (dz > -1 && dz < 4) {
+          const reach2 = this.magnetRange;
+          if (dz > -1 && dz < reach2 * 1.25) {
             const bx = p.x - o.x;
             const d2 = Math.hypot(bx, dz);
-            if (d2 < 3.2) {
-              o.x += bx * Math.min(1, (1 - d2 / 3.2) * 9 * dt);
+            if (d2 < reach2) {
+              o.x += bx * Math.min(1, (1 - d2 / reach2) * 9 * dt);
             }
           }
           if (Math.abs(dz) < Math.max(1.8, reach) && Math.abs(o.x - p.x) < 1.7 && Math.abs((o.y || 0) - p.y) < 1.9) {
@@ -361,7 +378,7 @@
             this.bumpCombo();
             const pts = 10 * Math.min(this.combo, 20);
             this.addScore(pts);
-            this.boost = Math.min(100, this.boost + 4);
+            this.boost = Math.min(100, this.boost + 4 * this.boostGain);
 
             const milestone = this.combo > 1 && this.combo % 5 === 0;
             this.sparkle(o, milestone);
@@ -387,7 +404,7 @@
               const pts = 200 * Math.min(this.combo, 15);
               this.addScore(pts);
               this.popup('通過!', '#8fd18a', pts);
-              this.boost = Math.min(100, this.boost + 8);
+              this.boost = Math.min(100, this.boost + 8 * this.boostGain);
             }
           }
           continue;
@@ -397,7 +414,7 @@
           if (Math.abs(dz) < Math.max(1.6, reach) && Math.abs(o.x - p.x) < 2.6 && !p.air) {
             o.used = true;
             p.air = true;
-            p.vy = 9.5 + p.speed * 0.1;
+            p.vy = (9.5 + p.speed * 0.1) * (1 + SB.shop.lv('jump') * 0.11);
             p.airTime = 0;
             p.grabbed = 0;
             p.squash = 1.2;

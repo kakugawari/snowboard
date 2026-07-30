@@ -262,7 +262,7 @@ html, body {
   50% { box-shadow: 0 6px 18px rgba(12, 34, 70, 0.28), 0 0 0 8px rgba(255, 208, 120, 0.16); }
 }
 
-/* 画面が低いとき（横向きのスマホ）はボタンを少し詰める */
+/* 横向きのスマホでは操作ボタンを少し詰める */
 @media (max-height: 460px) {
   .pad-side { bottom: calc(var(--safe-b) + 10px); gap: 10px; }
   .pad-left  { left: calc(var(--safe-l) + 12px); }
@@ -421,6 +421,84 @@ button {
 .toggle.on { border-color: var(--accent); color: var(--accent-d); background: rgba(74, 124, 224, 0.12); }
 .toggle:not(.on) { opacity: 0.5; text-decoration: line-through; }
 
+/* --- そうび ---------------------------------------------------------- */
+.wallet {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--ink);
+  margin-bottom: 2px;
+  font-variant-numeric: tabular-nums;
+}
+.wallet b { color: #d99a1e; }
+
+.shop-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.shop-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  background: rgba(255, 255, 255, 0.62);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+.shop-item.maxed { background: rgba(126, 190, 255, 0.18); }
+
+.shop-icon { font-size: 22px; line-height: 1; }
+
+.shop-name { font-size: 14px; font-weight: 900; color: var(--ink); }
+.shop-effect { font-size: 11px; font-weight: 700; color: var(--ink-soft); margin-top: 1px; }
+
+.pips { display: flex; gap: 3px; margin-top: 4px; }
+.pips i {
+  width: 14px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(70, 97, 138, 0.22);
+}
+.pips i.on { background: linear-gradient(90deg, #ffd25e, #f0a92e); }
+
+.shop-buy {
+  border: none;
+  border-radius: 12px;
+  padding: 9px 12px;
+  min-width: 74px;
+  font-size: 13px;
+  font-weight: 900;
+  color: #fff;
+  background: linear-gradient(180deg, #5b8cee, var(--accent-d));
+  box-shadow: 0 4px 0 #22407e;
+  font-variant-numeric: tabular-nums;
+}
+.shop-buy:active { transform: translateY(3px); box-shadow: 0 1px 0 #22407e; }
+.shop-buy[disabled] {
+  background: rgba(70, 97, 138, 0.2);
+  color: rgba(70, 97, 138, 0.7);
+  box-shadow: none;
+  cursor: default;
+}
+.shop-buy.done { background: none; color: var(--accent-d); box-shadow: none; }
+
+.earned {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 18px;
+  font-weight: 900;
+  margin-bottom: 14px;
+  color: var(--ink);
+}
+.earned b { color: #d99a1e; font-variant-numeric: tabular-nums; }
+.earned span { font-size: 12px; font-weight: 700; color: var(--ink-soft); }
+.earned i { font-style: normal; font-weight: 900; color: var(--ink); }
+
 .result-score {
   font-size: clamp(44px, 13vw, 64px);
   font-weight: 900;
@@ -450,6 +528,31 @@ button {
 
 @media (min-height: 760px) {
   .card { padding: 32px 26px 26px; }
+}
+
+/* 画面が低いとき（横向き）は、横幅を使って装備一覧を2列に畳む。
+   .card や .shop-list の既定はこれより前で定義しているので、
+   打ち消されないようスタイルシートの末尾に置く。 */
+@media (max-height: 520px) {
+  .card {
+    width: min(700px, 94vw);
+    padding: 16px 16px 14px;
+  }
+  .card h2 { font-size: 20px; margin-bottom: 4px; }
+  .lead { margin: 4px 0 10px; font-size: 12px; }
+  .wallet { font-size: 18px; }
+  .shop-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 7px;
+    margin-bottom: 12px;
+  }
+  .shop-item { padding: 8px 9px; gap: 7px; }
+  .shop-name { font-size: 12px; }
+  .shop-effect { font-size: 10px; }
+  .shop-buy { min-width: 62px; padding: 7px 8px; font-size: 12px; }
+  .result-grid { grid-template-columns: repeat(4, 1fr); }
+  .earned { margin-bottom: 10px; font-size: 16px; }
 }
 
 </style>
@@ -517,6 +620,7 @@ button {
     </div>
     <p class="lead">ぬいぐるみのクマと、雪山をひとすべり。</p>
     <button class="primary" id="btn-start">スタート</button>
+    <button class="ghost" id="btn-shop">🔔 そうび <span id="title-coins">0</span></button>
     <div class="best" id="title-best"></div>
     <details class="howto">
       <summary>あそびかた</summary>
@@ -535,6 +639,17 @@ button {
       <button class="toggle on" id="btn-sound">🔊 サウンド</button>
       <button class="toggle on" id="btn-haptics">📳 振動</button>
     </div>
+  </div>
+</div>
+
+<!-- そうび -->
+<div class="screen hidden" id="screen-shop">
+  <div class="card">
+    <h2>そうび</h2>
+    <div class="wallet">🔔 <b id="shop-coins">0</b></div>
+    <p class="lead">拾った鈴で、クマの装備をととのえよう。</p>
+    <div class="shop-list" id="shop-list"></div>
+    <button class="primary" id="btn-shop-close">とじる</button>
   </div>
 </div>
 
@@ -558,7 +673,9 @@ button {
       <div><span>トリック</span><b id="result-tricks">0</b></div>
       <div><span>ベスト</span><b id="result-best">0</b></div>
     </div>
+    <div class="earned">🔔 <b id="result-earned">+0</b> <span>手持ち <i id="result-coins">0</i></span></div>
     <button class="primary" id="btn-retry">もういちど</button>
+    <button class="ghost" id="btn-shop2">そうびを見る</button>
     <button class="ghost" id="btn-title">タイトルへ</button>
   </div>
 </div>
@@ -675,6 +792,109 @@ button {
     clamp, lerp, smoothstep, easeOutCubic, easeOutBack, damp,
     makeRng, mixHex, shade, rgba, roundRect, ellipse, fmt, store, TAU: Math.PI * 2,
   };
+})(window);
+
+/* ===== src/shop.js ===== */
+/* 装備とコイン ---------------------------------------------------------------
+   拾った鈴は走り終わりに「貯金」へ加算され、装備の購入に使える。
+   効果は数値ひとつで表され、ゲーム側はレベルを見て係数を掛けるだけにする。
+   バランスを触りたいときは、この DEFS だけを見ればよいようにしてある。   */
+(function (global) {
+  'use strict';
+  const SB = global.SB || (global.SB = {});
+  const { store, clamp } = SB.util;
+
+  const DEFS = [
+    {
+      id: 'speed', icon: '⚡', name: 'ホットワックス',
+      max: 4, base: 90,
+      lead: '滑走の最高速が上がる',
+      effect: (lv) => (lv ? `最高速 +${(lv * 1.6).toFixed(1)} m/s` : '最高速はそのまま'),
+    },
+    {
+      id: 'jump', icon: '🥾', name: 'バネ入りブーツ',
+      max: 4, base: 85,
+      lead: '高く跳べて、回転トリックを決めやすい',
+      effect: (lv) => (lv ? `ジャンプ力 +${lv * 11}%` : 'ジャンプ力はそのまま'),
+    },
+    {
+      id: 'magnet', icon: '🔔', name: 'ふしぎな鈴',
+      max: 3, base: 100,
+      lead: '離れた鈴まで吸い寄せる',
+      effect: (lv) => (lv ? `引き寄せ範囲 +${lv * 35}%` : '引き寄せ範囲はそのまま'),
+    },
+    {
+      id: 'boost', icon: '🚀', name: 'ロケットマフラー',
+      max: 3, base: 130,
+      lead: 'ブーストが貯まりやすく、長く続く',
+      effect: (lv) => (lv ? `ゲージ +${lv * 30}% / 時間 +${(lv * 0.45).toFixed(1)}秒` : 'ブーストはそのまま'),
+    },
+    {
+      id: 'heart', icon: '🩵', name: 'もこもこパッド',
+      max: 2, base: 260,
+      lead: 'ぶつかっても平気な回数が増える',
+      effect: (lv) => `ライフ ${3 + lv}`,
+    },
+  ];
+
+  const Shop = {
+    defs: DEFS,
+    coins: 0,
+    levels: {},
+
+    load() {
+      this.coins = Math.max(0, Number(store.get('sb_coins', 0)) || 0);
+      let saved = {};
+      try { saved = JSON.parse(store.get('sb_upgrades', '{}')) || {}; } catch (e) { saved = {}; }
+      this.levels = {};
+      for (const d of DEFS) {
+        this.levels[d.id] = clamp(Math.floor(Number(saved[d.id]) || 0), 0, d.max);
+      }
+      return this;
+    },
+
+    save() {
+      store.set('sb_coins', Math.floor(this.coins));
+      store.set('sb_upgrades', JSON.stringify(this.levels));
+    },
+
+    lv(id) { return this.levels[id] || 0; },
+
+    // 次のレベルの値段。上限まで上げ切っていれば null
+    cost(def) {
+      const lv = this.lv(def.id);
+      if (lv >= def.max) return null;
+      return Math.round(def.base * Math.pow(1.8, lv) / 5) * 5;
+    },
+
+    canBuy(def) {
+      const c = this.cost(def);
+      return c !== null && this.coins >= c;
+    },
+
+    buy(def) {
+      const c = this.cost(def);
+      if (c === null || this.coins < c) return false;
+      this.coins -= c;
+      this.levels[def.id] = this.lv(def.id) + 1;
+      this.save();
+      return true;
+    },
+
+    addCoins(n) {
+      this.coins += Math.max(0, Math.floor(n));
+      this.save();
+    },
+
+    // 開発用。コンソールから SB.shop.reset() で買い直せる
+    reset() {
+      this.coins = 0;
+      for (const d of DEFS) this.levels[d.id] = 0;
+      this.save();
+    },
+  };
+
+  SB.shop = Shop.load();
 })(window);
 
 /* ===== src/audio.js ===== */
@@ -2744,7 +2964,7 @@ button {
   const CAM_BACK = 6.4;    // カメラは何m後ろか
   const CAM_HEIGHT = 3.0;
   const GRAVITY = 22;
-  const MAX_HEARTS = 3;
+  const BASE_HEARTS = 3;
 
   const TRICK_NAMES = { 1: 'SPIN 360°', 2: 'SPIN 720°', 3: 'SPIN 1080°', 4: 'SPIN 1440°' };
 
@@ -2780,6 +3000,8 @@ button {
       this.floaters = [];
       this.sprayAcc = 0;
       this.punch = 0;
+      this.magnetRange = 3.2 * (1 + SB.shop.lv('magnet') * 0.35);
+      this.boostGain = 1 + SB.shop.lv('boost') * 0.30;
       this.demo = !!demo;
       this.p = {
         x: 0, z: 0, y: 0, vy: 0, vx: 0,
@@ -2794,7 +3016,8 @@ button {
       this.comboTimer = 0;
       this.bells = 0;
       this.tricks = 0;
-      this.hearts = MAX_HEARTS;
+      this.maxHearts = BASE_HEARTS + SB.shop.lv('heart');
+      this.hearts = this.maxHearts;
       this.boost = 0;          // 0..100 のゲージ
       this.boostTime = 0;
       this.slick = 0;          // アイスバーンの残り時間
@@ -2815,14 +3038,27 @@ button {
 
     gameOver() {
       this.state = 'over';
+      const earned = Math.floor(this.bells);
+      SB.shop.addCoins(earned);
       const isBest = this.score > this.best;
       if (isBest) { this.best = this.score; store.set('sb_best', Math.floor(this.score)); }
       if (this.distance > this.bestDist) { this.bestDist = this.distance; store.set('sb_bestdist', Math.floor(this.distance)); }
       this.ui.showResult({
         score: this.score, distance: this.distance, bells: this.bells,
         tricks: this.tricks, best: this.best, isBest,
+        earned, coins: SB.shop.coins,
       });
       this.ui.setHud(false);
+    }
+
+    /* 途中でやめたときも、拾った鈴は持ち帰れるようにする。
+       ここで渡さないと「やめると鈴が消える」不具合に見える。 */
+    abandonRun() {
+      if (this.state !== 'run' && this.state !== 'paused') return 0;
+      const earned = Math.floor(this.bells);
+      if (earned > 0) SB.shop.addCoins(earned);
+      this.bells = 0;
+      return earned;
     }
 
     togglePause() {
@@ -2860,7 +3096,7 @@ button {
       /* 速度 */
       const diffRamp = clamp(p.z / 2200, 0, 1);
       const offPiste = Math.abs(p.x) > C.PISTE_HALF;
-      let target = 13 + diffRamp * 13;
+      let target = 13 + diffRamp * 13 + SB.shop.lv('speed') * 1.6;
       if (this.demo) target = 11;
       if (tuck) target += 6;
       if (offPiste) target -= 7.5;
@@ -2994,7 +3230,7 @@ button {
       if (!this.demo) {
         this.ui.updateHud({
           score: this.score, distance: this.distance, speed: p.speed * 3.6,
-          combo: this.combo, hearts: this.hearts, boost: this.boost,
+          combo: this.combo, hearts: this.hearts, maxHearts: this.maxHearts, boost: this.boost,
           boosting: this.boostTime > 0,
         });
       }
@@ -3003,7 +3239,7 @@ button {
     jump() {
       const p = this.p;
       p.air = true;
-      p.vy = 7.2 + p.speed * 0.07;
+      p.vy = (7.2 + p.speed * 0.07) * (1 + SB.shop.lv('jump') * 0.11);
       p.airTime = 0;
       p.grabbed = 0;
       p.squash = 1.12;
@@ -3028,7 +3264,7 @@ button {
         const pts = 150 * rot * rot * Math.max(1, this.combo);
         this.addScore(pts);
         this.popup(name, '#ffd25e', pts);
-        this.boost = Math.min(100, this.boost + 12 * rot);
+        this.boost = Math.min(100, this.boost + 12 * rot * this.boostGain);
         this.tricks += rot;
         SB.audio.trick(rot);
         this.bumpCombo();
@@ -3037,7 +3273,7 @@ button {
         const air = Math.floor(p.airTime * 100) * (p.grabbed > 0.3 ? 2 : 1);
         this.addScore(air);
         if (p.grabbed > 0.3) { this.popup('GRAB!', '#8fd18a', air); this.tricks++; }
-        this.boost = Math.min(100, this.boost + p.airTime * 8);
+        this.boost = Math.min(100, this.boost + p.airTime * 8 * this.boostGain);
       }
       p.spin = 0;
       p.spinVel = 0;
@@ -3048,7 +3284,7 @@ button {
     tryBoost() {
       if (this.boost < 50 || this.boostTime > 0) return;
       this.boost -= 50;
-      this.boostTime = 2.6;
+      this.boostTime = 2.6 + SB.shop.lv('boost') * 0.45;
       this.shake = 0.5;
       this.flash(0.35, '#bfe6ff');
       this.spray(24, 2.2);
@@ -3084,11 +3320,12 @@ button {
              判定側で十分広く取ってあるので、寄せる必要がない。
              範囲を絞っているのは、列の鈴がまとめて寄って重なり、
              並びが崩れて見えるのを防ぐため。 */
-          if (dz > -1 && dz < 4) {
+          const reach2 = this.magnetRange;
+          if (dz > -1 && dz < reach2 * 1.25) {
             const bx = p.x - o.x;
             const d2 = Math.hypot(bx, dz);
-            if (d2 < 3.2) {
-              o.x += bx * Math.min(1, (1 - d2 / 3.2) * 9 * dt);
+            if (d2 < reach2) {
+              o.x += bx * Math.min(1, (1 - d2 / reach2) * 9 * dt);
             }
           }
           if (Math.abs(dz) < Math.max(1.8, reach) && Math.abs(o.x - p.x) < 1.7 && Math.abs((o.y || 0) - p.y) < 1.9) {
@@ -3097,7 +3334,7 @@ button {
             this.bumpCombo();
             const pts = 10 * Math.min(this.combo, 20);
             this.addScore(pts);
-            this.boost = Math.min(100, this.boost + 4);
+            this.boost = Math.min(100, this.boost + 4 * this.boostGain);
 
             const milestone = this.combo > 1 && this.combo % 5 === 0;
             this.sparkle(o, milestone);
@@ -3123,7 +3360,7 @@ button {
               const pts = 200 * Math.min(this.combo, 15);
               this.addScore(pts);
               this.popup('通過!', '#8fd18a', pts);
-              this.boost = Math.min(100, this.boost + 8);
+              this.boost = Math.min(100, this.boost + 8 * this.boostGain);
             }
           }
           continue;
@@ -3133,7 +3370,7 @@ button {
           if (Math.abs(dz) < Math.max(1.6, reach) && Math.abs(o.x - p.x) < 2.6 && !p.air) {
             o.used = true;
             p.air = true;
-            p.vy = 9.5 + p.speed * 0.1;
+            p.vy = (9.5 + p.speed * 0.1) * (1 + SB.shop.lv('jump') * 0.11);
             p.airTime = 0;
             p.grabbed = 0;
             p.squash = 1.2;
@@ -3508,6 +3745,8 @@ button {
     resultDistance: $('result-distance'), resultBells: $('result-bells'),
     resultTricks: $('result-tricks'), resultBest: $('result-best'),
     pad: $('pad'), padBoost: document.querySelector('.pad-boost'),
+    shop: $('screen-shop'), shopList: $('shop-list'), shopCoins: $('shop-coins'),
+    titleCoins: $('title-coins'), resultEarned: $('result-earned'), resultCoins: $('result-coins'),
   };
 
   /* --- UI ------------------------------------------------------------ */
@@ -3518,7 +3757,7 @@ button {
     _lastHearts: -1,
 
     setScreen(name) {
-      for (const key of ['title', 'pause', 'result']) {
+      for (const key of ['title', 'pause', 'result', 'shop']) {
         els[key].classList.toggle('hidden', key !== name);
       }
     },
@@ -3537,10 +3776,11 @@ button {
         els.combo.textContent = d.combo > 1 ? `${d.combo} COMBO` : '';
         els.combo.classList.toggle('show', d.combo > 1);
       }
-      if (d.hearts !== this._lastHearts) {
+      if (d.hearts !== this._lastHearts || d.maxHearts !== this._lastMax) {
         this._lastHearts = d.hearts;
+        this._lastMax = d.maxHearts;
         els.hearts.innerHTML = '';
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < d.maxHearts; i++) {
           const s = document.createElement('span');
           s.textContent = '🩵';
           if (i >= d.hearts) s.className = 'lost';
@@ -3561,7 +3801,66 @@ button {
       els.resultBells.textContent = fmt(r.bells);
       els.resultTricks.textContent = fmt(r.tricks);
       els.resultBest.textContent = fmt(r.best);
+      els.resultEarned.textContent = `+${fmt(r.earned)}`;
+      els.resultCoins.textContent = fmt(r.coins);
       this.setScreen('result');
+    },
+
+    /* 装備一覧。買うたびに作り直す（項目が5つなので十分速い） */
+    renderShop() {
+      const shop = SB.shop;
+      els.shopCoins.textContent = fmt(shop.coins);
+      els.titleCoins.textContent = fmt(shop.coins);
+      els.shopList.innerHTML = '';
+
+      for (const def of shop.defs) {
+        const lv = shop.lv(def.id);
+        const cost = shop.cost(def);
+        const maxed = cost === null;
+
+        const row = document.createElement('div');
+        row.className = 'shop-item' + (maxed ? ' maxed' : '');
+
+        const icon = document.createElement('div');
+        icon.className = 'shop-icon';
+        icon.textContent = def.icon;
+
+        const mid = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'shop-name';
+        name.textContent = def.name;
+        const eff = document.createElement('div');
+        eff.className = 'shop-effect';
+        // まだ買っていないうちは何が起きるか、買った後は今の効果を出す
+        eff.textContent = lv === 0 ? def.lead : def.effect(lv);
+        const pips = document.createElement('div');
+        pips.className = 'pips';
+        for (let i = 0; i < def.max; i++) {
+          const pip = document.createElement('i');
+          if (i < lv) pip.className = 'on';
+          pips.appendChild(pip);
+        }
+        mid.append(name, eff, pips);
+
+        const buy = document.createElement('button');
+        buy.className = 'shop-buy' + (maxed ? ' done' : '');
+        if (maxed) {
+          buy.textContent = 'MAX';
+          buy.disabled = true;
+        } else {
+          buy.textContent = `🔔 ${fmt(cost)}`;
+          buy.disabled = !shop.canBuy(def);
+          buy.addEventListener('click', () => {
+            if (!shop.buy(def)) return;
+            SB.audio.resume();
+            SB.audio.coin(4);
+            this.renderShop();
+          });
+        }
+
+        row.append(icon, mid, buy);
+        els.shopList.appendChild(row);
+      }
     },
 
     refreshTitleBest(game) {
@@ -3580,6 +3879,7 @@ button {
 
   SB.audio.setEnabled(ui.sound);
   ui.refreshTitleBest(game);
+  ui.renderShop();
   ui.setScreen('title');
   ui.setHud(false);
 
@@ -3599,12 +3899,17 @@ button {
   tap($('btn-pause'), () => game.togglePause());
   tap($('btn-resume'), () => game.togglePause());
   tap($('btn-quit'), () => backToTitle());
+  tap($('btn-shop'), () => { ui.renderShop(); ui.setScreen('shop'); });
+  tap($('btn-shop2'), () => { ui.renderShop(); ui.setScreen('shop'); });
+  tap($('btn-shop-close'), () => backToTitle());
   tap($('btn-title'), () => backToTitle());
 
   function backToTitle() {
-    game.reset(true);
+    game.abandonRun();         // 途中でやめても拾った鈴は持ち帰る
+    game.reset(true);          // 買った装備を次の走りへ反映させる
     game.state = 'title';
     ui.refreshTitleBest(game);
+    ui.renderShop();
     ui.setScreen('title');
     ui.setHud(false);
   }

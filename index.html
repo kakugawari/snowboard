@@ -81,6 +81,7 @@
     </div>
     <p class="lead">ぬいぐるみのクマと、雪山をひとすべり。</p>
     <button class="primary" id="btn-start">スタート</button>
+    <button class="ghost" id="btn-shop">🔔 そうび <span id="title-coins">0</span></button>
     <div class="best" id="title-best"></div>
     <details class="howto">
       <summary>あそびかた</summary>
@@ -99,6 +100,17 @@
       <button class="toggle on" id="btn-sound">🔊 サウンド</button>
       <button class="toggle on" id="btn-haptics">📳 振動</button>
     </div>
+  </div>
+</div>
+
+<!-- そうび -->
+<div class="screen hidden" id="screen-shop">
+  <div class="card">
+    <h2>そうび</h2>
+    <div class="wallet">🔔 <b id="shop-coins">0</b></div>
+    <p class="lead">拾った鈴で、クマの装備をととのえよう。</p>
+    <div class="shop-list" id="shop-list"></div>
+    <button class="primary" id="btn-shop-close">とじる</button>
   </div>
 </div>
 
@@ -122,12 +134,15 @@
       <div><span>トリック</span><b id="result-tricks">0</b></div>
       <div><span>ベスト</span><b id="result-best">0</b></div>
     </div>
+    <div class="earned">🔔 <b id="result-earned">+0</b> <span>手持ち <i id="result-coins">0</i></span></div>
     <button class="primary" id="btn-retry">もういちど</button>
+    <button class="ghost" id="btn-shop2">そうびを見る</button>
     <button class="ghost" id="btn-title">タイトルへ</button>
   </div>
 </div>
 
 <script src="src/util.js"></script>
+<script src="src/shop.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/input.js"></script>
 <script src="src/world.js"></script>

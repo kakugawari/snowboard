@@ -16,6 +16,8 @@
     resultDistance: $('result-distance'), resultBells: $('result-bells'),
     resultTricks: $('result-tricks'), resultBest: $('result-best'),
     pad: $('pad'), padBoost: document.querySelector('.pad-boost'),
+    shop: $('screen-shop'), shopList: $('shop-list'), shopCoins: $('shop-coins'),
+    titleCoins: $('title-coins'), resultEarned: $('result-earned'), resultCoins: $('result-coins'),
   };
 
   /* --- UI ------------------------------------------------------------ */
@@ -26,7 +28,7 @@
     _lastHearts: -1,
 
     setScreen(name) {
-      for (const key of ['title', 'pause', 'result']) {
+      for (const key of ['title', 'pause', 'result', 'shop']) {
         els[key].classList.toggle('hidden', key !== name);
       }
     },
@@ -45,10 +47,11 @@
         els.combo.textContent = d.combo > 1 ? `${d.combo} COMBO` : '';
         els.combo.classList.toggle('show', d.combo > 1);
       }
-      if (d.hearts !== this._lastHearts) {
+      if (d.hearts !== this._lastHearts || d.maxHearts !== this._lastMax) {
         this._lastHearts = d.hearts;
+        this._lastMax = d.maxHearts;
         els.hearts.innerHTML = '';
-        for (let i = 0; i < 3; i++) {
+        for (let i = 0; i < d.maxHearts; i++) {
           const s = document.createElement('span');
           s.textContent = '🩵';
           if (i >= d.hearts) s.className = 'lost';
@@ -69,7 +72,66 @@
       els.resultBells.textContent = fmt(r.bells);
       els.resultTricks.textContent = fmt(r.tricks);
       els.resultBest.textContent = fmt(r.best);
+      els.resultEarned.textContent = `+${fmt(r.earned)}`;
+      els.resultCoins.textContent = fmt(r.coins);
       this.setScreen('result');
+    },
+
+    /* 装備一覧。買うたびに作り直す（項目が5つなので十分速い） */
+    renderShop() {
+      const shop = SB.shop;
+      els.shopCoins.textContent = fmt(shop.coins);
+      els.titleCoins.textContent = fmt(shop.coins);
+      els.shopList.innerHTML = '';
+
+      for (const def of shop.defs) {
+        const lv = shop.lv(def.id);
+        const cost = shop.cost(def);
+        const maxed = cost === null;
+
+        const row = document.createElement('div');
+        row.className = 'shop-item' + (maxed ? ' maxed' : '');
+
+        const icon = document.createElement('div');
+        icon.className = 'shop-icon';
+        icon.textContent = def.icon;
+
+        const mid = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'shop-name';
+        name.textContent = def.name;
+        const eff = document.createElement('div');
+        eff.className = 'shop-effect';
+        // まだ買っていないうちは何が起きるか、買った後は今の効果を出す
+        eff.textContent = lv === 0 ? def.lead : def.effect(lv);
+        const pips = document.createElement('div');
+        pips.className = 'pips';
+        for (let i = 0; i < def.max; i++) {
+          const pip = document.createElement('i');
+          if (i < lv) pip.className = 'on';
+          pips.appendChild(pip);
+        }
+        mid.append(name, eff, pips);
+
+        const buy = document.createElement('button');
+        buy.className = 'shop-buy' + (maxed ? ' done' : '');
+        if (maxed) {
+          buy.textContent = 'MAX';
+          buy.disabled = true;
+        } else {
+          buy.textContent = `🔔 ${fmt(cost)}`;
+          buy.disabled = !shop.canBuy(def);
+          buy.addEventListener('click', () => {
+            if (!shop.buy(def)) return;
+            SB.audio.resume();
+            SB.audio.coin(4);
+            this.renderShop();
+          });
+        }
+
+        row.append(icon, mid, buy);
+        els.shopList.appendChild(row);
+      }
     },
 
     refreshTitleBest(game) {
@@ -88,6 +150,7 @@
 
   SB.audio.setEnabled(ui.sound);
   ui.refreshTitleBest(game);
+  ui.renderShop();
   ui.setScreen('title');
   ui.setHud(false);
 
@@ -107,12 +170,17 @@
   tap($('btn-pause'), () => game.togglePause());
   tap($('btn-resume'), () => game.togglePause());
   tap($('btn-quit'), () => backToTitle());
+  tap($('btn-shop'), () => { ui.renderShop(); ui.setScreen('shop'); });
+  tap($('btn-shop2'), () => { ui.renderShop(); ui.setScreen('shop'); });
+  tap($('btn-shop-close'), () => backToTitle());
   tap($('btn-title'), () => backToTitle());
 
   function backToTitle() {
-    game.reset(true);
+    game.abandonRun();         // 途中でやめても拾った鈴は持ち帰る
+    game.reset(true);          // 買った装備を次の走りへ反映させる
     game.state = 'title';
     ui.refreshTitleBest(game);
+    ui.renderShop();
     ui.setScreen('title');
     ui.setHud(false);
   }
