@@ -29,7 +29,7 @@
       }
       this.particles = [];
       this.popups = [];
-      this.cam = { x: 0, y: 0, z: 0, fov: 1, pitch: 0, roll: 0, shakeX: 0, shakeY: 0 };
+      this.cam = { x: 0, y: 0, z: 0, fov: 1, fovBase: 1, pitch: 0, roll: 0, shakeX: 0, shakeY: 0 };
       this.shake = 0;
       this.flashA = 0;
       this.flashColor = '#ffffff';
@@ -229,7 +229,8 @@
       cam.x = SB.centerX(cam.z) + p.x - lateralOffset;   // 減衰させると追従が遅れて自機が画面端へ逃げる
       const groundY = SB.terrainY(p.z);
       cam.y = damp(cam.y, groundY + CAM_HEIGHT + p.y * 0.35, 8, dt);
-      cam.fov = damp(cam.fov, this.boostTime > 0 ? 0.86 : (tuck ? 0.93 : 1), 4, dt) - this.punch * 0.016;
+      cam.fovBase = damp(cam.fovBase, this.boostTime > 0 ? 0.86 : (tuck ? 0.93 : 1), 4, dt);
+      cam.fov = cam.fovBase - this.punch * 0.018;
       cam.pitch = damp(cam.pitch, clamp(-p.vy * 0.004, -0.05, 0.05) + (tuck ? 0.02 : 0), 5, dt);
       cam.roll = damp(cam.roll, clamp(-p.lean * 0.035 - p.vx * 0.0015, -0.05, 0.05), 7, dt);
       this.shake = Math.max(0, this.shake - dt * 2.5);
@@ -341,16 +342,17 @@
 
         if (o.type === 'bell') {
           if (o.taken) continue;
-          // 近づいた鈴は自分の方へ吸い寄せる。線で並んだ鈴を拾うときの
-          // 「すっと吸い込まれる」感じが、爽快さのほとんどを作る。
-          if (dz > -1 && dz < 6) {
-            const bx = p.x - o.x, by = p.y - (o.y || 0);
-            const d3 = Math.hypot(bx, by, dz);
-            if (d3 < 4.2) {
-              const k = Math.min(1, (1 - d3 / 4.2) * 11 * dt);
-              o.x += bx * k;
-              o.y = (o.y || 0) + by * k;
-              o.pulled = true;
+          /* 近づいた鈴を自分の方へ吸い寄せる。
+             引くのは横方向だけにする。高さまで引くと、手前で鈴が雪面へ
+             沈み込んで「消えた」ように見えてしまう。高さの許容は当たり
+             判定側で十分広く取ってあるので、寄せる必要がない。
+             範囲を絞っているのは、列の鈴がまとめて寄って重なり、
+             並びが崩れて見えるのを防ぐため。 */
+          if (dz > -1 && dz < 4) {
+            const bx = p.x - o.x;
+            const d2 = Math.hypot(bx, dz);
+            if (d2 < 3.2) {
+              o.x += bx * Math.min(1, (1 - d2 / 3.2) * 9 * dt);
             }
           }
           if (Math.abs(dz) < Math.max(1.8, reach) && Math.abs(o.x - p.x) < 1.7 && Math.abs((o.y || 0) - p.y) < 1.9) {
@@ -526,7 +528,8 @@
     /* 拾った場所から浮き上がる得点表示 */
     floater(o, text, color, scale) {
       this.floaters.push({
-        x: o.x, y: (o.y || 0.9), z: o.z,
+        // 拾う位置は足元に近く、そのままだと画面下で切れる。少し上から出す
+        x: o.x, y: (o.y || 0.9) + 0.9, z: o.z,
         text, color, scale: scale || 1, age: 0, life: 0.7,
       });
       if (this.floaters.length > 14) this.floaters.shift();

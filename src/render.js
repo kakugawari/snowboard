@@ -566,6 +566,28 @@
 
       this.castShadow(x, y, h * 0.62, f, w * 0.34);
 
+      /* 遠い木は簡略版で描く。画面上で小さいときに段や雪の陰影を描いても
+         見分けがつかず、本数ぶんの塗りだけが積み上がる。 */
+      if (h < 42) {
+        ctx.fillStyle = mixHex(PAL.trunk, PAL.haze, f);
+        ctx.fillRect(x - w * 0.07, y - h * 0.24, w * 0.14, h * 0.24);
+        ctx.fillStyle = mixHex(PAL.pine, PAL.haze, f);
+        ctx.beginPath();
+        ctx.moveTo(x, y - h);
+        ctx.lineTo(x + w * 0.85, y - h * 0.16);
+        ctx.lineTo(x - w * 0.85, y - h * 0.16);
+        ctx.closePath(); ctx.fill();
+        if (o.snowy) {
+          ctx.fillStyle = mixHex('#ffffff', PAL.haze, f * 0.75);
+          ctx.beginPath();
+          ctx.moveTo(x, y - h);
+          ctx.lineTo(x + w * 0.42, y - h * 0.55);
+          ctx.lineTo(x - w * 0.42, y - h * 0.55);
+          ctx.closePath(); ctx.fill();
+        }
+        return;
+      }
+
       ctx.save();
       ctx.translate(x, y);
 
@@ -641,6 +663,19 @@
       const warm = o.warm || '#b5613f';
 
       this.castShadow(x, y, (wall + roof) * 0.8, f, w * 0.34);
+
+      // 遠い小屋は「壁と赤い屋根」だけに落とす
+      if (wall + roof < 26) {
+        ctx.fillStyle = mixHex('#c99b6e', PAL.haze, f);
+        ctx.fillRect(x - w * 0.82, y - wall, w * 1.64, wall);
+        ctx.fillStyle = mixHex(warm, PAL.haze, f);
+        ctx.beginPath();
+        ctx.moveTo(x, y - wall - roof);
+        ctx.lineTo(x + w, y - wall);
+        ctx.lineTo(x - w, y - wall);
+        ctx.closePath(); ctx.fill();
+        return;
+      }
 
       // 壁
       ctx.fillStyle = mixHex('#c99b6e', PAL.haze, f);

@@ -106,12 +106,22 @@
     /* camZ より前方 VIEW メートルまでを埋める */
     ensure(camZ, difficulty) {
       const limit = camZ + C.VIEW;
+      let added = false;
       while (this.nextZ < limit) {
         this.pending = [];
         this.fillChunk(this.nextZ, difficulty);
-        this.pending.sort((a, b) => a.z - b.z);
         for (const o of this.pending) this.objects.push(o);
+        if (this.pending.length) added = true;
         this.nextZ += C.CHUNK;
+      }
+      /* パターンによっては生成区画より先の z にも物を置く（スラロームの旗は
+         5本で80m先まで、鈴の列も40m先まで伸びる）。区画の中だけ並べても
+         配列全体の z 順は崩れる。当たり判定は「z が離れたら打ち切る」ので、
+         順序が崩れていると手前の物を見ないまま止まりうる。追加したら必ず
+         全体を並べ直す。ほぼ整列済みの配列なので実測でも軽い。 */
+      if (added) {
+        this.objects.sort((a, b) => a.z - b.z);
+        this.head = 0;
       }
       // 通過した分を捨てる
       while (this.head < this.objects.length && this.objects[this.head].z < camZ - 20) this.head++;
