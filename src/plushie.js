@@ -40,10 +40,23 @@
     const t = st.t || 0;
     const sq = st.squash || 1;   // 1 = 通常、<1 で潰れる
 
-    // 回転トリック: cos で横幅を潰し、符号が負なら背面
-    const cs = Math.cos(spin);
+    /* 向きの考え方。
+       進行方向を向いて滑るのが自然なので、既定は「背中を見せる」= 角度 π。
+       ジャンプ中や転倒時だけ look が 1 に近づき、頭だけがこちらを向く。
+       胴と頭で角度を分けているので「肩越しに振り返る」形になる。       */
+    const look = clamp(st.look || 0, 0, 1);
+    const bodyAngle = spin + Math.PI;
+    const headAngle = spin + Math.PI * (1 - look);
+
+    const cs = Math.cos(bodyAngle);
     const facing = cs >= 0 ? 1 : -1;
     const flat = Math.max(Math.abs(cs), 0.16);
+
+    const hcs = Math.cos(headAngle);
+    const headFacing = hcs >= 0 ? 1 : -1;
+    const headFlat = Math.max(Math.abs(hcs), 0.22);
+    // 胴に掛かっている横方向の変形を、頭のぶんだけ差し替えるための係数
+    const headFix = (headFlat * headFacing) / (flat * facing);
 
     ctx.save();
     ctx.translate(px, py);
@@ -156,16 +169,17 @@
 
     /* --- 頭 --- */
     const yHead = yBody - 0.40;
-    const headTilt = lean * 0.18 + (air ? Math.sin(t * 5) * 0.05 : 0);
+    const headTilt = lean * 0.18 + (air ? Math.sin(t * 5) * 0.05 : 0) + look * 0.10;
     ctx.save();
-    ctx.translate(0, yHead);
+    ctx.translate(look * 0.05, yHead);      // 振り返るぶん、わずかに肩へ寄せる
     ctx.rotate(headTilt);
+    ctx.scale(headFix, 1);                  // ここから先だけ頭の向きになる
 
     // 耳
     for (const side of [-1, 1]) {
       ctx.fillStyle = FUR_D;
       ellipse(ctx, side * 0.235, -0.20, 0.105, 0.105); ctx.fill();
-      if (facing > 0) {
+      if (headFacing > 0) {
         ctx.fillStyle = EAR_IN;
         ellipse(ctx, side * 0.245, -0.20, 0.055, 0.055); ctx.fill();
       }
@@ -174,7 +188,7 @@
     ctx.fillStyle = FUR;
     ellipse(ctx, 0, 0, 0.30, 0.285); ctx.fill();
 
-    if (facing > 0) {
+    if (headFacing > 0) {
       // マズル
       ctx.fillStyle = MUZZLE;
       ellipse(ctx, 0, 0.10, 0.16, 0.115); ctx.fill();
@@ -240,13 +254,18 @@
     ellipse(ctx, pomX, -0.36, 0.085, 0.085); ctx.fill();
     ctx.fillStyle = 'rgba(0,0,0,0.06)';
     ellipse(ctx, pomX + 0.02, -0.34, 0.06, 0.06); ctx.fill();
-    // ゴーグル（額に上げている）
+    // ゴーグル。額に上げている。後ろからはバンドだけが見える
     ctx.fillStyle = 'rgba(40,48,64,0.9)';
     roundRect(ctx, -0.235, -0.16, 0.47, 0.10, 0.045); ctx.fill();
-    ctx.fillStyle = 'rgba(150,215,235,0.9)';
-    roundRect(ctx, -0.205, -0.145, 0.41, 0.062, 0.03); ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.6)';
-    roundRect(ctx, -0.17, -0.138, 0.11, 0.045, 0.02); ctx.fill();
+    if (headFacing > 0) {
+      ctx.fillStyle = 'rgba(150,215,235,0.9)';
+      roundRect(ctx, -0.205, -0.145, 0.41, 0.062, 0.03); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      roundRect(ctx, -0.17, -0.138, 0.11, 0.045, 0.02); ctx.fill();
+    } else {
+      ctx.fillStyle = 'rgba(28,34,46,0.9)';
+      roundRect(ctx, -0.235, -0.142, 0.47, 0.03, 0.015); ctx.fill();
+    }
 
     ctx.restore();
 

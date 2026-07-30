@@ -262,6 +262,16 @@ html, body {
   }
   .boost-wrap { width: 34vw; }
   .boost-label { display: none; }
+
+  /* 計器を上へ出したぶん、コンボ表示も上へ。放っておくと下端に落ちて
+     キャラクターと重なる（縦並びの余りが下に寄るため） */
+  .combo {
+    position: absolute;
+    top: calc(var(--safe-t) + 44px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .combo.show { animation: none; }
 }
 
 @media (hover: hover) {

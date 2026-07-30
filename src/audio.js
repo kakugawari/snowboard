@@ -106,10 +106,26 @@
       src.start(t);
     },
 
+    /* 鈴の音。コンボが伸びるほど音階を上げる。半音ずつ上げると不協和に
+       なるので、ペンタトニック（ヨナ抜き）を辿る。並んだ鈴を続けて拾うと
+       短い旋律になり、それ自体が気持ちよさになる。 */
     coin(combo) {
-      const step = Math.min(combo || 0, 12);
-      this.tone(880 * Math.pow(2, step / 12), 0.16, 'triangle', 0.18);
-      this.tone(1320 * Math.pow(2, step / 12), 0.12, 'sine', 0.09);
+      const scale = [0, 2, 4, 7, 9];
+      const i = Math.max(0, Math.min((combo || 1) - 1, 24));
+      const semi = scale[i % 5] + 12 * Math.floor(i / 5);
+      const f = 620 * Math.pow(2, semi / 12);
+      this.tone(f, 0.15, 'triangle', 0.17);
+      this.tone(f * 2, 0.10, 'sine', 0.075);
+      this.tone(f * 3, 0.06, 'sine', 0.03);
+      this.noise(0.07, 3200, 6000, 0.05);      // きらめきの成分
+    },
+
+    // コンボの節目。上へ抜ける短いアルペジオ
+    comboUp(combo) {
+      const base = 700 * Math.pow(2, Math.min(combo / 40, 1));
+      [0, 4, 7].forEach((semi, k) => {
+        setTimeout(() => this.tone(base * Math.pow(2, semi / 12), 0.18, 'triangle', 0.12), k * 55);
+      });
     },
     jump() { this.tone(320, 0.18, 'sine', 0.16, 760); this.noise(0.12, 900, 2600, 0.06); },
     land() { this.noise(0.22, 1200, 200, 0.16); },

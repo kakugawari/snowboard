@@ -41,7 +41,9 @@
       this.particles.length = 0;
       this.popups.length = 0;
       this.trail = [];
+      this.floaters = [];
       this.sprayAcc = 0;
+      this.punch = 0;
       this.demo = !!demo;
       this.p = {
         x: 0, z: 0, y: 0, vy: 0, vx: 0,
@@ -49,7 +51,7 @@
         air: false, airTime: 0, squash: 1,
         blink: 1, blinkTimer: 2,
         crash: 0, crashRot: 0, invuln: 0,
-        grabbed: 0,
+        grabbed: 0, look: 0,
       };
       this.score = 0;
       this.combo = 0;
@@ -190,6 +192,9 @@
       }
       p.invuln = Math.max(0, p.invuln - dt);
 
+      // ジャンプ中と転倒中だけ、肩越しにこちらを向く
+      p.look = damp(p.look, (p.air || p.crash > 0) ? 1 : 0, 11, dt);
+
       /* まばたき */
       p.blinkTimer -= dt;
       if (p.blinkTimer <= 0) { p.blinkTimer = 2 + Math.random() * 3.5; p.blinkAnim = 0.18; }
@@ -224,7 +229,7 @@
       cam.x = SB.centerX(cam.z) + p.x - lateralOffset;   // 減衰させると追従が遅れて自機が画面端へ逃げる
       const groundY = SB.terrainY(p.z);
       cam.y = damp(cam.y, groundY + CAM_HEIGHT + p.y * 0.35, 8, dt);
-      cam.fov = damp(cam.fov, this.boostTime > 0 ? 0.86 : (tuck ? 0.93 : 1), 4, dt);
+      cam.fov = damp(cam.fov, this.boostTime > 0 ? 0.86 : (tuck ? 0.93 : 1), 4, dt) - this.punch * 0.016;
       cam.pitch = damp(cam.pitch, clamp(-p.vy * 0.004, -0.05, 0.05) + (tuck ? 0.02 : 0), 5, dt);
       cam.roll = damp(cam.roll, clamp(-p.lean * 0.035 - p.vx * 0.0015, -0.05, 0.05), 7, dt);
       this.shake = Math.max(0, this.shake - dt * 2.5);
@@ -236,7 +241,9 @@
       /* 演出 */
       this.updateFlakes(dt, speedRatio);
       this.updateParticles(dt);
+      this.updateFloaters(dt);
       this.updatePopups(dt);
+      this.punch = Math.max(0, this.punch - dt * 3.4);
       this.flashA = Math.max(0, this.flashA - dt * 2.2);
       if (!p.air && !p.crash && p.speed > 8) {
         const rate = (Math.abs(p.lean) > 0.35 ? 22 * Math.abs(p.lean) : 0) + (offPiste ? 26 : 0);
@@ -334,16 +341,38 @@
 
         if (o.type === 'bell') {
           if (o.taken) continue;
-          if (Math.abs(dz) < Math.max(1.8, reach) && Math.abs(o.x - p.x) < 1.5 && Math.abs((o.y || 0) - p.y) < 1.7) {
+          // 近づいた鈴は自分の方へ吸い寄せる。線で並んだ鈴を拾うときの
+          // 「すっと吸い込まれる」感じが、爽快さのほとんどを作る。
+          if (dz > -1 && dz < 6) {
+            const bx = p.x - o.x, by = p.y - (o.y || 0);
+            const d3 = Math.hypot(bx, by, dz);
+            if (d3 < 4.2) {
+              const k = Math.min(1, (1 - d3 / 4.2) * 11 * dt);
+              o.x += bx * k;
+              o.y = (o.y || 0) + by * k;
+              o.pulled = true;
+            }
+          }
+          if (Math.abs(dz) < Math.max(1.8, reach) && Math.abs(o.x - p.x) < 1.7 && Math.abs((o.y || 0) - p.y) < 1.9) {
             o.taken = true;
             this.bells++;
             this.bumpCombo();
             const pts = 10 * Math.min(this.combo, 20);
             this.addScore(pts);
             this.boost = Math.min(100, this.boost + 4);
-            this.sparkle(o);
+
+            const milestone = this.combo > 1 && this.combo % 5 === 0;
+            this.sparkle(o, milestone);
+            this.ring(o, milestone);
+            this.floater(o, `+${pts}`, milestone ? '#ffd98a' : '#ffffff', milestone ? 1.35 : 1);
+            this.punch = Math.min(1, this.punch + (milestone ? 0.55 : 0.3));
             SB.audio.coin(this.combo);
-            if (this.combo > 1 && this.combo % 10 === 0) this.popup(`${this.combo} COMBO!`, '#ffb3d9');
+            if (milestone) {
+              this.flash(0.12, '#fff3cf');
+              this.vibrate(12);
+              SB.audio.comboUp(this.combo);
+              if (this.combo % 10 === 0) this.popup(`${this.combo} COMBO!`, '#ffb3d9');
+            }
           }
           continue;
         }
@@ -465,18 +494,70 @@
       }
     }
 
-    sparkle(o) {
-      for (let i = 0; i < 8; i++) {
+    sparkle(o, big) {
+      const n = big ? 18 : 11;
+      for (let i = 0; i < n; i++) {
+        const a = (i / n) * TAU + Math.random() * 0.4;
+        const sp = (big ? 5.5 : 3.8) * (0.5 + Math.random() * 0.7);
         this.particles.push({
           kind: 'spark',
           x: o.x, y: (o.y || 0.9), z: o.z,
-          vx: (Math.random() - 0.5) * 4,
-          vy: (Math.random() - 0.3) * 4,
-          vz: (Math.random() - 0.5) * 3,
-          life: 0.4 + Math.random() * 0.3,
+          vx: Math.cos(a) * sp,
+          vy: Math.sin(a) * sp * 0.8 + 1.2,
+          vz: (Math.random() - 0.5) * 2.4,
+          life: 0.42 + Math.random() * 0.34,
           age: 0,
-          r: 0.09,
+          r: big ? 0.13 : 0.1,
         });
+      }
+    }
+
+    /* 取った瞬間に広がる輪。一瞬で消えるが「拾えた」信号として強い */
+    ring(o, big) {
+      this.particles.push({
+        kind: 'ring',
+        x: o.x, y: (o.y || 0.9), z: o.z,
+        vx: 0, vy: 0.8, vz: 0,
+        life: big ? 0.5 : 0.36, age: 0,
+        r: big ? 2.6 : 1.8,
+      });
+    }
+
+    /* 拾った場所から浮き上がる得点表示 */
+    floater(o, text, color, scale) {
+      this.floaters.push({
+        x: o.x, y: (o.y || 0.9), z: o.z,
+        text, color, scale: scale || 1, age: 0, life: 0.7,
+      });
+      if (this.floaters.length > 14) this.floaters.shift();
+    }
+
+    updateFloaters(dt) {
+      for (let i = this.floaters.length - 1; i >= 0; i--) {
+        const f = this.floaters[i];
+        f.age += dt;
+        f.y += (2.6 - f.age * 1.4) * dt;
+        if (f.age >= f.life || f.z < this.cam.z + 1) this.floaters.splice(i, 1);
+      }
+    }
+
+    drawFloaters(ctx) {
+      for (const f of this.floaters) {
+        const pr = this.r.project(SB.centerX(f.z) + f.x, SB.terrainY(f.z) + f.y, f.z);
+        if (!pr || pr.dz < 2) continue;
+        const t = f.age / f.life;
+        const size = clamp(pr.s * 0.26 * f.scale, 11, 30 * f.scale);
+        ctx.save();
+        ctx.globalAlpha = clamp(1 - t * t, 0, 1);
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.font = `900 ${size}px system-ui, sans-serif`;
+        ctx.lineWidth = size * 0.2;
+        ctx.strokeStyle = 'rgba(24,48,84,0.5)';
+        ctx.strokeText(f.text, pr.x, pr.y);
+        ctx.fillStyle = f.color;
+        ctx.fillText(f.text, pr.x, pr.y);
+        ctx.restore();
       }
     }
 
@@ -547,6 +628,7 @@
       this.drawParticles(ctx, 'behind');
       this.drawRider(ctx);
       this.drawParticles(ctx, 'front');
+      this.drawFloaters(ctx);
 
       ctx.restore();
 
@@ -583,6 +665,7 @@
         tuck: this.input.tuck && !p.air ? 1 : (p.air && p.grabbed > 0 ? 1 : 0),
         crash: p.crash > 0 ? 1 : 0,
         crashRot: p.crashRot,
+        look: p.look,
         t: this.t,
         blink: p.blink,
         squash: p.squash,
@@ -600,7 +683,14 @@
         const pr = r.project(SB.centerX(q.z) + q.x, SB.terrainY(q.z) + q.y, q.z);
         if (!pr || pr.dz < 3) continue;
         const a = 1 - q.age / q.life;
-        if (q.kind === 'spark') {
+        if (q.kind === 'ring') {
+          const rt = q.age / q.life;
+          ctx.strokeStyle = `rgba(255,225,150,${(1 - rt) * 0.85})`;
+          ctx.lineWidth = Math.max(1, pr.s * 0.06 * (1 - rt));
+          ctx.beginPath();
+          ctx.arc(pr.x, pr.y, q.r * pr.s * (0.2 + rt * 1.1), 0, TAU);
+          ctx.stroke();
+        } else if (q.kind === 'spark') {
           ctx.fillStyle = `rgba(255,222,140,${a})`;
           SB.drawStar(ctx, pr.x, pr.y, q.r * pr.s * 1.6);
         } else {
