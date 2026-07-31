@@ -262,12 +262,82 @@ html, body {
   50% { box-shadow: 0 6px 18px rgba(12, 34, 70, 0.28), 0 0 0 8px rgba(255, 208, 120, 0.16); }
 }
 
+/* --- シーソー型の操作板 ---------------------------------------------- *
+   触れた位置で向きが決まる。円ふたつより当たり判定が広く、指を滑らせて
+   境界をまたげばその場で切り替わるので、押し間違えても直せる。         */
+.seesaw {
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  display: flex;
+  align-items: stretch;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(12, 34, 70, 0.26);
+  overflow: hidden;
+}
+
+.seesaw-x {
+  width: max(210px, calc(var(--ui) * 0.54));
+  height: max(78px, calc(var(--ui) * 0.20));
+}
+.seesaw-y {
+  flex-direction: column;
+  width: max(88px, calc(var(--ui) * 0.225));
+  height: max(158px, calc(var(--ui) * 0.40));
+}
+
+.seesaw-half {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #fff;
+  transition: background .08s;
+}
+.seesaw-y .seesaw-half { flex-direction: column; }
+
+.seesaw-half svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 3px rgba(12, 34, 70, 0.45));
+}
+.seesaw-half b {
+  font-size: max(10px, calc(var(--ui) * 0.024));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 4px rgba(12, 34, 70, 0.5);
+}
+
+/* 押されている側だけ明るくする。どちらが効いているか常に分かる */
+.seesaw-half.on { background: rgba(255, 255, 255, 0.42); }
+.seesaw-y .seesaw-half[data-zone="jump"].on { background: rgba(126, 190, 255, 0.55); }
+
+/* 中央の仕切り。押し分ける境目が見えていないと狙いが定まらない */
+.seesaw-line {
+  background: rgba(255, 255, 255, 0.45);
+  flex: 0 0 2px;
+}
+.seesaw-x .seesaw-line { width: 2px; }
+.seesaw-y .seesaw-line { height: 2px; }
+
 /* 横向きのスマホでは操作ボタンを少し詰める */
 @media (max-height: 460px) {
   .pad-side { bottom: calc(var(--safe-b) + 10px); gap: 10px; }
   .pad-left  { left: calc(var(--safe-l) + 12px); }
   .pad-right { right: calc(var(--safe-r) + 12px); }
   .pad-btn span { display: none; }
+  .seesaw-half svg { width: 30px; height: 30px; }
 
   /* 下中央はキャラクターと操作ボタンの居場所なので、計器は上へ逃がす */
   .hud-bottom {
@@ -613,6 +683,16 @@ button {
   #screen-shop .wallet { margin-bottom: 0; }
 }
 
+/* 縦画面。操作板が円ボタンより背が高いので、計器の逃がし幅を広げる。
+   横幅も足りなくなるため、ブーストは横に並べず上に載せる。 */
+@media (max-width: 560px) and (min-height: 461px) {
+  /* 操作板（ブースト＋ジャンプ／しゃがみを縦に積んだ高さ）を越える量。
+     足りないと速度計とゲージがボタンに重なる */
+  .hud-bottom { padding-bottom: calc(var(--ui) * 0.66); }
+  .pad-right { flex-direction: column; align-items: center; gap: calc(var(--ui) * 0.02); }
+  .seesaw-x { width: max(180px, calc(var(--ui) * 0.48)); }
+}
+
 </style>
 
 <canvas id="game"></canvas>
@@ -644,28 +724,37 @@ button {
   </div>
 </div>
 
-<!-- 操作ボタン。押している間だけ効くものは data-hold、押した瞬間は data-tap -->
+<!-- 操作ボタン。
+     舵とアクションは「シーソー」にしてある。触れた位置で左右（上下）が
+     決まり、押したまま指を滑らせるとその場で切り替わる。境界を押し間違
+     えても、指を動かすだけで直せる。 -->
 <div id="pad" class="hidden">
   <div class="pad-side pad-left">
-    <button class="pad-btn" data-hold="left" aria-label="左へ">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5 8 12l7.5 7.5"/></svg>
-    </button>
-    <button class="pad-btn" data-hold="right" aria-label="右へ">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4.5 16 12l-7.5 7.5"/></svg>
-    </button>
+    <div class="seesaw seesaw-x" data-axis="x" role="group" aria-label="左右に曲がる">
+      <span class="seesaw-half" data-zone="left" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M15.5 4.5 8 12l7.5 7.5"/></svg>
+      </span>
+      <span class="seesaw-line" aria-hidden="true"></span>
+      <span class="seesaw-half" data-zone="right" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M8.5 4.5 16 12l-7.5 7.5"/></svg>
+      </span>
+    </div>
   </div>
   <div class="pad-side pad-right">
     <button class="pad-btn pad-boost" data-tap="boost" aria-label="ブースト">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor" stroke="none"/></svg>
     </button>
-    <button class="pad-btn" data-hold="tuck" aria-label="しゃがむ">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 8.5 12 16l7.5-7.5"/></svg>
-      <span>しゃがむ</span>
-    </button>
-    <button class="pad-btn pad-jump" data-tap="jump" aria-label="ジャンプ">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 15.5 12 8l7.5 7.5"/></svg>
-      <span>ジャンプ</span>
-    </button>
+    <div class="seesaw seesaw-y" data-axis="y" role="group" aria-label="ジャンプとしゃがみ">
+      <span class="seesaw-half" data-zone="jump" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4.5 15.5 12 8l7.5 7.5"/></svg>
+        <b>ジャンプ</b>
+      </span>
+      <span class="seesaw-line" aria-hidden="true"></span>
+      <span class="seesaw-half" data-zone="tuck" aria-hidden="true">
+        <b>しゃがむ</b>
+        <svg viewBox="0 0 24 24"><path d="M4.5 8.5 12 16l7.5-7.5"/></svg>
+      </span>
+    </div>
   </div>
 </div>
 
@@ -692,9 +781,9 @@ button {
     <details class="howto">
       <summary>あそびかた</summary>
       <ul>
-        <li><b>左下の ◀ ▶</b> … 押している間カービング</li>
-        <li><b>右下の ∧</b> … ジャンプ（空中で ◀ ▶ を押すと回転トリック）</li>
-        <li><b>右下の ∨</b> … 押している間しゃがんで加速／空中ではグラブ</li>
+        <li><b>左下の板</b> … 触れた側へ曲がる。押したまま指を滑らせると即座に切り替わり、外側を押すほど深く曲がります</li>
+        <li><b>右下の板・上半分</b> … ジャンプ（空中で左下を押すと回転トリック）</li>
+        <li><b>右下の板・下半分</b> … しゃがんで加速／空中ではグラブ</li>
         <li><b>⚡ ボタン</b> … ブースト（ゲージ50%以上で光ったら押せる・障害物を粉砕）</li>
         <li>画面を<b>ドラッグ／フリック</b>する操作も、そのまま使えます</li>
         <li>金の鈴を連続で取るとコンボ倍率が上がります</li>
@@ -1141,16 +1230,90 @@ button {
       this.moved = 0;
       this.flickBuf = [];     // 直近の縦移動サンプル（フリック判定用）
       this.keys = new Set();
-      this.held = { left: false, right: false, tuck: false };  // 画面ボタン
+      this.held = { tuck: false };   // 押している間だけ効くもの
+      this.padSteer = 0;             // シーソーによる操舵（-1..1）
+      this.padActive = false;
+      this.padJumpLatch = false;
       this.enabled = true;
 
       this._bind();
+    }
+
+    /* シーソー型の操作板。
+       触れた位置が中心からどちら側かで向きが決まる。押したまま指を滑ら
+       せれば境界をまたいだ瞬間に切り替わるので、押し間違えても指を動か
+       すだけで直せる。横方向は中心からの深さで曲がり具合も変える。   */
+    bindSeesaw(sw) {
+      const axis = sw.dataset.axis;
+      const halves = [...sw.querySelectorAll('.seesaw-half')];
+      const mark = (zone) => {
+        for (const h of halves) h.classList.toggle('on', h.dataset.zone === zone);
+      };
+
+      const apply = (e) => {
+        const r = sw.getBoundingClientRect();
+        if (axis === 'x') {
+          const t = clamp((e.clientX - (r.left + r.width / 2)) / (r.width / 2 || 1), -1, 1);
+          const a = Math.abs(t);
+          if (a < 0.08) {                    // ど真ん中だけは無反応にする
+            this.padSteer = 0;
+            mark(null);
+          } else {
+            // 端に近いほど深く曲がる。押した瞬間から効くよう 0.55 から始める
+            this.padSteer = Math.sign(t) * (0.55 + 0.45 * Math.min(1, (a - 0.08) / 0.72));
+            mark(t < 0 ? 'left' : 'right');
+          }
+          this.padActive = true;
+        } else {
+          const t = (e.clientY - (r.top + r.height / 2)) / (r.height / 2 || 1);
+          const jump = t < -0.04;
+          // 上側へ「入った瞬間」に一度だけ跳ぶ。押しっぱなしで連発しない
+          if (jump && !this.padJumpLatch) this.jumpQueued = true;
+          this.padJumpLatch = jump;
+          this.held.tuck = t > 0.04;
+          mark(jump ? 'jump' : (this.held.tuck ? 'tuck' : null));
+        }
+      };
+
+      const release = () => {
+        if (axis === 'x') { this.padSteer = 0; this.padActive = false; }
+        else { this.held.tuck = false; this.padJumpLatch = false; }
+        mark(null);
+      };
+
+      sw.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sw.setPointerCapture && sw.setPointerCapture(e.pointerId);
+        sw.__id = e.pointerId;
+        apply(e);
+      }, { passive: false });
+
+      sw.addEventListener('pointermove', (e) => {
+        if (sw.__id !== e.pointerId) return;
+        e.preventDefault();
+        e.stopPropagation();
+        apply(e);
+      }, { passive: false });
+
+      const end = (e) => {
+        if (sw.__id !== e.pointerId) return;
+        e.stopPropagation();
+        sw.__id = null;
+        release();
+      };
+      sw.addEventListener('pointerup', end);
+      sw.addEventListener('pointercancel', end);
+      sw.addEventListener('contextmenu', (e) => e.preventDefault());
+      sw.__release = release;
     }
 
     /* 画面上の操作ボタン。押している間だけ効くもの（data-hold）と、
        押した瞬間に一度だけ効くもの（data-tap）を同じ仕組みで拾う。 */
     bindPad(root) {
       if (!root) return;
+      for (const sw of root.querySelectorAll('.seesaw')) this.bindSeesaw(sw);
+
       const press = (btn, on) => {
         const hold = btn.dataset.hold;
         if (hold) this.held[hold] = on;
@@ -1183,8 +1346,14 @@ button {
     }
 
     releaseAll(root) {
-      this.held.left = this.held.right = this.held.tuck = false;
-      if (root) for (const b of root.querySelectorAll('.pressed')) b.classList.remove('pressed');
+      this.held.tuck = false;
+      this.padSteer = 0;
+      this.padActive = false;
+      this.padJumpLatch = false;
+      if (!root) return;
+      for (const b of root.querySelectorAll('.pressed')) b.classList.remove('pressed');
+      for (const h of root.querySelectorAll('.seesaw-half.on')) h.classList.remove('on');
+      for (const sw of root.querySelectorAll('.seesaw')) sw.__id = null;
     }
 
     get radius() { return Math.max(70, Math.min(innerWidth, innerHeight) * 0.24); }
@@ -1285,11 +1454,10 @@ button {
 
       if (k.has('ArrowLeft') || k.has('KeyA')) steer -= 1;
       if (k.has('ArrowRight') || k.has('KeyD')) steer += 1;
-      if (this.held.left) steer -= 1;
-      if (this.held.right) steer += 1;
+      if (this.padActive) steer = this.padSteer;   // 操作板を触っていればそちらが優先
 
-      // 画面ボタンを使っていないときだけ、ドラッグでの操舵を見る
-      if (this.active && !this.held.left && !this.held.right) {
+      // 操作板を使っていないときだけ、ドラッグでの操舵を見る
+      if (this.active && !this.padActive) {
         const r = this.radius;
         steer = clamp((this.curX - this.originX) / r, -1, 1);
         tuck = this.curY - this.originY > r * 0.45;

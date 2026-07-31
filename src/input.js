@@ -27,16 +27,90 @@
       this.moved = 0;
       this.flickBuf = [];     // 直近の縦移動サンプル（フリック判定用）
       this.keys = new Set();
-      this.held = { left: false, right: false, tuck: false };  // 画面ボタン
+      this.held = { tuck: false };   // 押している間だけ効くもの
+      this.padSteer = 0;             // シーソーによる操舵（-1..1）
+      this.padActive = false;
+      this.padJumpLatch = false;
       this.enabled = true;
 
       this._bind();
+    }
+
+    /* シーソー型の操作板。
+       触れた位置が中心からどちら側かで向きが決まる。押したまま指を滑ら
+       せれば境界をまたいだ瞬間に切り替わるので、押し間違えても指を動か
+       すだけで直せる。横方向は中心からの深さで曲がり具合も変える。   */
+    bindSeesaw(sw) {
+      const axis = sw.dataset.axis;
+      const halves = [...sw.querySelectorAll('.seesaw-half')];
+      const mark = (zone) => {
+        for (const h of halves) h.classList.toggle('on', h.dataset.zone === zone);
+      };
+
+      const apply = (e) => {
+        const r = sw.getBoundingClientRect();
+        if (axis === 'x') {
+          const t = clamp((e.clientX - (r.left + r.width / 2)) / (r.width / 2 || 1), -1, 1);
+          const a = Math.abs(t);
+          if (a < 0.08) {                    // ど真ん中だけは無反応にする
+            this.padSteer = 0;
+            mark(null);
+          } else {
+            // 端に近いほど深く曲がる。押した瞬間から効くよう 0.55 から始める
+            this.padSteer = Math.sign(t) * (0.55 + 0.45 * Math.min(1, (a - 0.08) / 0.72));
+            mark(t < 0 ? 'left' : 'right');
+          }
+          this.padActive = true;
+        } else {
+          const t = (e.clientY - (r.top + r.height / 2)) / (r.height / 2 || 1);
+          const jump = t < -0.04;
+          // 上側へ「入った瞬間」に一度だけ跳ぶ。押しっぱなしで連発しない
+          if (jump && !this.padJumpLatch) this.jumpQueued = true;
+          this.padJumpLatch = jump;
+          this.held.tuck = t > 0.04;
+          mark(jump ? 'jump' : (this.held.tuck ? 'tuck' : null));
+        }
+      };
+
+      const release = () => {
+        if (axis === 'x') { this.padSteer = 0; this.padActive = false; }
+        else { this.held.tuck = false; this.padJumpLatch = false; }
+        mark(null);
+      };
+
+      sw.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        sw.setPointerCapture && sw.setPointerCapture(e.pointerId);
+        sw.__id = e.pointerId;
+        apply(e);
+      }, { passive: false });
+
+      sw.addEventListener('pointermove', (e) => {
+        if (sw.__id !== e.pointerId) return;
+        e.preventDefault();
+        e.stopPropagation();
+        apply(e);
+      }, { passive: false });
+
+      const end = (e) => {
+        if (sw.__id !== e.pointerId) return;
+        e.stopPropagation();
+        sw.__id = null;
+        release();
+      };
+      sw.addEventListener('pointerup', end);
+      sw.addEventListener('pointercancel', end);
+      sw.addEventListener('contextmenu', (e) => e.preventDefault());
+      sw.__release = release;
     }
 
     /* 画面上の操作ボタン。押している間だけ効くもの（data-hold）と、
        押した瞬間に一度だけ効くもの（data-tap）を同じ仕組みで拾う。 */
     bindPad(root) {
       if (!root) return;
+      for (const sw of root.querySelectorAll('.seesaw')) this.bindSeesaw(sw);
+
       const press = (btn, on) => {
         const hold = btn.dataset.hold;
         if (hold) this.held[hold] = on;
@@ -69,8 +143,14 @@
     }
 
     releaseAll(root) {
-      this.held.left = this.held.right = this.held.tuck = false;
-      if (root) for (const b of root.querySelectorAll('.pressed')) b.classList.remove('pressed');
+      this.held.tuck = false;
+      this.padSteer = 0;
+      this.padActive = false;
+      this.padJumpLatch = false;
+      if (!root) return;
+      for (const b of root.querySelectorAll('.pressed')) b.classList.remove('pressed');
+      for (const h of root.querySelectorAll('.seesaw-half.on')) h.classList.remove('on');
+      for (const sw of root.querySelectorAll('.seesaw')) sw.__id = null;
     }
 
     get radius() { return Math.max(70, Math.min(innerWidth, innerHeight) * 0.24); }
@@ -171,11 +251,10 @@
 
       if (k.has('ArrowLeft') || k.has('KeyA')) steer -= 1;
       if (k.has('ArrowRight') || k.has('KeyD')) steer += 1;
-      if (this.held.left) steer -= 1;
-      if (this.held.right) steer += 1;
+      if (this.padActive) steer = this.padSteer;   // 操作板を触っていればそちらが優先
 
-      // 画面ボタンを使っていないときだけ、ドラッグでの操舵を見る
-      if (this.active && !this.held.left && !this.held.right) {
+      // 操作板を使っていないときだけ、ドラッグでの操舵を見る
+      if (this.active && !this.padActive) {
         const r = this.radius;
         steer = clamp((this.curX - this.originX) / r, -1, 1);
         tuck = this.curY - this.originY > r * 0.45;

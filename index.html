@@ -47,28 +47,37 @@
   </div>
 </div>
 
-<!-- 操作ボタン。押している間だけ効くものは data-hold、押した瞬間は data-tap -->
+<!-- 操作ボタン。
+     舵とアクションは「シーソー」にしてある。触れた位置で左右（上下）が
+     決まり、押したまま指を滑らせるとその場で切り替わる。境界を押し間違
+     えても、指を動かすだけで直せる。 -->
 <div id="pad" class="hidden">
   <div class="pad-side pad-left">
-    <button class="pad-btn" data-hold="left" aria-label="左へ">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15.5 4.5 8 12l7.5 7.5"/></svg>
-    </button>
-    <button class="pad-btn" data-hold="right" aria-label="右へ">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 4.5 16 12l-7.5 7.5"/></svg>
-    </button>
+    <div class="seesaw seesaw-x" data-axis="x" role="group" aria-label="左右に曲がる">
+      <span class="seesaw-half" data-zone="left" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M15.5 4.5 8 12l7.5 7.5"/></svg>
+      </span>
+      <span class="seesaw-line" aria-hidden="true"></span>
+      <span class="seesaw-half" data-zone="right" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M8.5 4.5 16 12l-7.5 7.5"/></svg>
+      </span>
+    </div>
   </div>
   <div class="pad-side pad-right">
     <button class="pad-btn pad-boost" data-tap="boost" aria-label="ブースト">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z" fill="currentColor" stroke="none"/></svg>
     </button>
-    <button class="pad-btn" data-hold="tuck" aria-label="しゃがむ">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 8.5 12 16l7.5-7.5"/></svg>
-      <span>しゃがむ</span>
-    </button>
-    <button class="pad-btn pad-jump" data-tap="jump" aria-label="ジャンプ">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 15.5 12 8l7.5 7.5"/></svg>
-      <span>ジャンプ</span>
-    </button>
+    <div class="seesaw seesaw-y" data-axis="y" role="group" aria-label="ジャンプとしゃがみ">
+      <span class="seesaw-half" data-zone="jump" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><path d="M4.5 15.5 12 8l7.5 7.5"/></svg>
+        <b>ジャンプ</b>
+      </span>
+      <span class="seesaw-line" aria-hidden="true"></span>
+      <span class="seesaw-half" data-zone="tuck" aria-hidden="true">
+        <b>しゃがむ</b>
+        <svg viewBox="0 0 24 24"><path d="M4.5 8.5 12 16l7.5-7.5"/></svg>
+      </span>
+    </div>
   </div>
 </div>
 
@@ -95,9 +104,9 @@
     <details class="howto">
       <summary>あそびかた</summary>
       <ul>
-        <li><b>左下の ◀ ▶</b> … 押している間カービング</li>
-        <li><b>右下の ∧</b> … ジャンプ（空中で ◀ ▶ を押すと回転トリック）</li>
-        <li><b>右下の ∨</b> … 押している間しゃがんで加速／空中ではグラブ</li>
+        <li><b>左下の板</b> … 触れた側へ曲がる。押したまま指を滑らせると即座に切り替わり、外側を押すほど深く曲がります</li>
+        <li><b>右下の板・上半分</b> … ジャンプ（空中で左下を押すと回転トリック）</li>
+        <li><b>右下の板・下半分</b> … しゃがんで加速／空中ではグラブ</li>
         <li><b>⚡ ボタン</b> … ブースト（ゲージ50%以上で光ったら押せる・障害物を粉砕）</li>
         <li>画面を<b>ドラッグ／フリック</b>する操作も、そのまま使えます</li>
         <li>金の鈴を連続で取るとコンボ倍率が上がります</li>

@@ -243,12 +243,82 @@ html, body {
   50% { box-shadow: 0 6px 18px rgba(12, 34, 70, 0.28), 0 0 0 8px rgba(255, 208, 120, 0.16); }
 }
 
+/* --- シーソー型の操作板 ---------------------------------------------- *
+   触れた位置で向きが決まる。円ふたつより当たり判定が広く、指を滑らせて
+   境界をまたげばその場で切り替わるので、押し間違えても直せる。         */
+.seesaw {
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  display: flex;
+  align-items: stretch;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 255, 255, 0.6);
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(12, 34, 70, 0.26);
+  overflow: hidden;
+}
+
+.seesaw-x {
+  width: max(210px, calc(var(--ui) * 0.54));
+  height: max(78px, calc(var(--ui) * 0.20));
+}
+.seesaw-y {
+  flex-direction: column;
+  width: max(88px, calc(var(--ui) * 0.225));
+  height: max(158px, calc(var(--ui) * 0.40));
+}
+
+.seesaw-half {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: #fff;
+  transition: background .08s;
+}
+.seesaw-y .seesaw-half { flex-direction: column; }
+
+.seesaw-half svg {
+  width: 34px;
+  height: 34px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  filter: drop-shadow(0 1px 3px rgba(12, 34, 70, 0.45));
+}
+.seesaw-half b {
+  font-size: max(10px, calc(var(--ui) * 0.024));
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 4px rgba(12, 34, 70, 0.5);
+}
+
+/* 押されている側だけ明るくする。どちらが効いているか常に分かる */
+.seesaw-half.on { background: rgba(255, 255, 255, 0.42); }
+.seesaw-y .seesaw-half[data-zone="jump"].on { background: rgba(126, 190, 255, 0.55); }
+
+/* 中央の仕切り。押し分ける境目が見えていないと狙いが定まらない */
+.seesaw-line {
+  background: rgba(255, 255, 255, 0.45);
+  flex: 0 0 2px;
+}
+.seesaw-x .seesaw-line { width: 2px; }
+.seesaw-y .seesaw-line { height: 2px; }
+
 /* 横向きのスマホでは操作ボタンを少し詰める */
 @media (max-height: 460px) {
   .pad-side { bottom: calc(var(--safe-b) + 10px); gap: 10px; }
   .pad-left  { left: calc(var(--safe-l) + 12px); }
   .pad-right { right: calc(var(--safe-r) + 12px); }
   .pad-btn span { display: none; }
+  .seesaw-half svg { width: 30px; height: 30px; }
 
   /* 下中央はキャラクターと操作ボタンの居場所なので、計器は上へ逃がす */
   .hud-bottom {
@@ -592,4 +662,14 @@ button {
   #screen-shop .pips { margin-top: 3px; }
   #screen-shop .pips i { height: 4px; }
   #screen-shop .wallet { margin-bottom: 0; }
+}
+
+/* 縦画面。操作板が円ボタンより背が高いので、計器の逃がし幅を広げる。
+   横幅も足りなくなるため、ブーストは横に並べず上に載せる。 */
+@media (max-width: 560px) and (min-height: 461px) {
+  /* 操作板（ブースト＋ジャンプ／しゃがみを縦に積んだ高さ）を越える量。
+     足りないと速度計とゲージがボタンに重なる */
+  .hud-bottom { padding-bottom: calc(var(--ui) * 0.66); }
+  .pad-right { flex-direction: column; align-items: center; gap: calc(var(--ui) * 0.02); }
+  .seesaw-x { width: max(180px, calc(var(--ui) * 0.48)); }
 }
