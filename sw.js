@@ -1,5 +1,5 @@
 /* オフライン用の最小限のキャッシュ。更新時は CACHE の版数を上げる。 */
-const CACHE = 'mofu-snowboard-v9';
+const CACHE = 'mofu-snowboard-v11';
 const ASSETS = [
   './',
   './index.html',
@@ -12,12 +12,14 @@ const ASSETS = [
   './assets/icon-maskable-512.png',
   './assets/apple-touch-icon.png',
   './src/util.js',
+  './src/tricks.js',
   './src/shop.js',
   './src/audio.js',
   './src/input.js',
   './src/world.js',
   './src/render.js',
   './src/plushie.js',
+  './src/rival.js',
   './src/game.js',
   './src/main.js',
 ];

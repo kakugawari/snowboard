@@ -10,7 +10,7 @@
   const GRAVITY = 22;
   const BASE_HEARTS = 3;
 
-  const TRICK_NAMES = { 1: 'SPIN 360°', 2: 'SPIN 720°', 3: 'SPIN 1080°', 4: 'SPIN 1440°' };
+  const SPIN_NAMES = { 1: '360°', 2: '720°', 3: '1080°', 4: '1440°' };
 
   class Game {
     constructor(renderer, input, ui) {
@@ -23,6 +23,7 @@
       this.bestDist = Number(store.get('sb_bestdist', 0));
 
       this.world = new SB.World();
+      this.rival = new SB.Rival();
       this.flakes = [];
       for (let i = 0; i < 70; i++) {
         this.flakes.push({ x: Math.random(), y: Math.random(), d: Math.random(), r: 1 + Math.random() * 2.2, drift: Math.random() * TAU });
@@ -44,6 +45,9 @@
       this.floaters = [];
       this.sprayAcc = 0;
       this.punch = 0;
+      this.trick = null;
+      if (this.rival) this.rival.reset();
+      this.rivalLead = false;    // 直前フレームで相手より前にいたか
       this.magnetRange = 3.2 * (1 + SB.shop.lv('magnet') * 0.35);
       this.boostGain = 1 + SB.shop.lv('boost') * 0.30;
       this.demo = !!demo;
@@ -53,7 +57,7 @@
         air: false, airTime: 0, squash: 1,
         blink: 1, blinkTimer: 2,
         crash: 0, crashRot: 0, invuln: 0,
-        grabbed: 0, look: 0,
+        grabbed: 0, look: 0, poseMix: 0,
       };
       this.score = 0;
       this.combo = 0;
@@ -91,6 +95,7 @@
         score: this.score, distance: this.distance, bells: this.bells,
         tricks: this.tricks, best: this.best, isBest,
         earned, coins: SB.shop.coins,
+        rivalName: this.rival.name, rivalGap: this.distance - this.rival.z,
       });
       this.ui.setHud(false);
     }
@@ -210,6 +215,8 @@
 
       // ジャンプ中と転倒中だけ、肩越しにこちらを向く
       p.look = damp(p.look, (p.air || p.crash > 0) ? 1 : 0, 11, dt);
+      // 技のポーズは跳んだ直後にすっと決まり、着地でほどける
+      p.poseMix = damp(p.poseMix, (p.air && this.trick && !p.crash) ? 1 : 0, 14, dt);
 
       /* まばたき */
       p.blinkTimer -= dt;
@@ -234,6 +241,21 @@
       /* ワールド */
       this.world.ensure(p.z - CAM_BACK, diffRamp);
       if (!this.demo && running) this.collide(dt);
+      if (!this.demo) {
+        // カウントダウン中も一緒に助走する。ここで止めると、その間に
+        // こちらだけ 20m 以上進んでしまい、勝負にならない
+        const rolling = running || this.state === 'ready';
+        this.rival.update(rolling ? dt : 0, p, this.world, diffRamp);
+        // 抜いた・抜かれた瞬間を伝える。数字だけだと気づきにくい
+        if (running) {
+          const lead = this.rival.z < p.z;
+          if (lead !== this.rivalLead) {
+            this.rivalLead = lead;
+            if (lead) { this.popup(`${this.rival.name}を ぬいた！`, '#ffd25e'); SB.audio.trick(1.2); }
+            else this.popup(`${this.rival.name}に ぬかれた`, '#bfe6ff');
+          }
+        }
+      }
 
       /* カメラ */
       const cam = this.cam;
@@ -275,6 +297,7 @@
         this.ui.updateHud({
           score: this.score, distance: this.distance, speed: p.speed * 3.6,
           combo: this.combo, hearts: this.hearts, maxHearts: this.maxHearts, boost: this.boost,
+          rivalName: this.rival.name, rivalGap: this.rival.z - p.z,
           boosting: this.boostTime > 0,
         });
       }
@@ -287,8 +310,21 @@
       p.airTime = 0;
       p.grabbed = 0;
       p.squash = 1.12;
+      this.startTrick();
       this.spray(10, 1.4);
       SB.audio.jump();
+    }
+
+    /* 跳ぶたびに技を1つ選ぶ。操作は増やさず、見た目と名前だけが変わる */
+    startTrick() {
+      // 直前の技は着地時に消えるので、別に覚えておかないと同じ技が続く
+      this.trick = SB.tricks.pick(this.lastTrickId);
+      this.lastTrickId = this.trick.id;
+      this.floater(
+        { x: this.p.x, y: 2.0, z: this.p.z + 1 },
+        this.trick.name, '#ffffff', 1.1
+      );
+      SB.audio.trick(1);
     }
 
     land() {
@@ -301,22 +337,30 @@
       SB.audio.land();
       this.shake = Math.max(this.shake, Math.min(0.4, p.airTime * 0.25));
 
-      // 回転トリックの判定（270°以上で1回転ぶんとみなす）
+      /* 決まった技をまとめて精算する。
+         技そのもの＋回転ぶん＋グラブぶんを1つの名前にして出す。 */
       const rot = Math.floor(Math.abs(p.spin) / (TAU * 0.75));
-      if (rot > 0 && !p.crash) {
-        const name = TRICK_NAMES[Math.min(rot, 4)] || `SPIN ${rot * 360}°`;
-        const pts = 150 * rot * rot * Math.max(1, this.combo);
+      if (!p.crash && (this.trick || rot > 0)) {
+        const parts = [];
+        let pts = 0;
+        if (this.trick) { parts.push(this.trick.name); pts += this.trick.points; }
+        if (rot > 0) {
+          parts.push(SPIN_NAMES[Math.min(rot, 4)] || `${rot * 360}°`);
+          pts += 150 * rot * rot;
+        }
+        if (p.grabbed > 0.3) { parts.push('グラブ'); pts += 80; }
+        pts = Math.round(pts * Math.max(1, this.combo));
+
         this.addScore(pts);
-        this.popup(name, '#ffd25e', pts);
-        this.boost = Math.min(100, this.boost + 12 * rot * this.boostGain);
-        this.tricks += rot;
-        SB.audio.trick(rot);
+        this.popup(parts.join(' + '), rot > 0 ? '#ffd25e' : '#bfe6ff', pts);
+        this.boost = Math.min(100, this.boost + (10 + 12 * rot) * this.boostGain);
+        this.tricks += 1 + rot;
+        SB.audio.trick(1 + rot);
         this.bumpCombo();
       }
+      this.trick = null;
       if (p.airTime > 0.5) {
-        const air = Math.floor(p.airTime * 100) * (p.grabbed > 0.3 ? 2 : 1);
-        this.addScore(air);
-        if (p.grabbed > 0.3) { this.popup('GRAB!', '#8fd18a', air); this.tricks++; }
+        this.addScore(Math.floor(p.airTime * 100));
         this.boost = Math.min(100, this.boost + p.airTime * 8 * this.boostGain);
       }
       p.spin = 0;
@@ -458,6 +502,7 @@
       p.vy = 0;
       p.speed *= 0.35;
       p.spin = 0;
+      this.trick = null;
       this.combo = 0;
       this.comboTimer = 0;
       this.hearts--;
@@ -646,6 +691,7 @@
       r.drawWorld(this.world, this.t);
       r.drawTrail(this.trail);
       this.drawParticles(ctx, 'behind');
+      if (!this.demo) this.rival.draw(ctx, r, this.p);
       this.drawRider(ctx);
       this.drawParticles(ctx, 'front');
       this.drawFloaters(ctx);
@@ -686,6 +732,8 @@
         crash: p.crash > 0 ? 1 : 0,
         crashRot: p.crashRot,
         look: p.look,
+        pose: this.trick ? this.trick.pose : null,
+        poseMix: p.poseMix,
         t: this.t,
         blink: p.blink,
         squash: p.squash,

@@ -6,19 +6,22 @@
   const SB = global.SB || (global.SB = {});
   const { clamp, lerp, roundRect, ellipse, rgba, TAU } = SB.util;
 
-  const FUR = '#e6bd91';
-  const FUR_D = '#cfa176';
-  const BELLY = '#f6e7d2';
-  const MUZZLE = '#f8ecd9';
-  const EAR_IN = '#f0aeae';
-  const HAT = '#6fcbbd';
-  const HAT_D = '#4fae9f';
-  const SCARF = '#e2483f';
-  const SCARF_D = '#b8352d';
-  const BOARD = '#4a7ce0';
-  const BOARD_D = '#2f57ac';
-  const BOOT = '#3b4150';
-  const NOSE = '#5b4034';
+  /* 見た目一式。ライバルには別の組み合わせを渡す */
+  const SKINS = {
+    bear: {
+      fur: '#e6bd91', furD: '#cfa176', belly: '#f6e7d2', muzzle: '#f8ecd9',
+      earIn: '#f0aeae', hat: '#6fcbbd', hatD: '#4fae9f',
+      scarf: '#e2483f', scarfD: '#b8352d', mitten: '#e2483f', mittenD: '#c96f68',
+      board: '#4a7ce0', boardD: '#2f57ac', boot: '#3b4150', nose: '#5b4034',
+    },
+    // ライバル。ひと目で見分けられるよう色相をずらす
+    rival: {
+      fur: '#d8d3e8', furD: '#bdb6d4', belly: '#f2eff8', muzzle: '#faf7ff',
+      earIn: '#e8aecb', hat: '#f2a2bf', hatD: '#d97fa2',
+      scarf: '#5cc2b4', scarfD: '#3f9d90', mitten: '#5cc2b4', mittenD: '#4aa79a',
+      board: '#f2b23c', boardD: '#c98a1c', boot: '#4a4358', nose: '#5a4a63',
+    },
+  };
 
   function capsule(ctx, x1, y1, x2, y2, r, color) {
     ctx.strokeStyle = color;
@@ -39,6 +42,15 @@
     const crash = st.crash || 0;
     const t = st.t || 0;
     const sq = st.squash || 1;   // 1 = 通常、<1 で潰れる
+    const S = st.skin || SKINS.bear;
+    // 技のポーズは空中でだけ効かせる。着地したら普通の姿勢へ戻す
+    const pose = (st.air && st.pose) ? st.pose : null;
+    const poseMix = clamp(st.poseMix === undefined ? (pose ? 1 : 0) : st.poseMix, 0, 1);
+    const lift = pose ? (pose.lift || 0) * poseMix : 0;
+    const boardTilt = pose ? (pose.tilt || 0) * poseMix : 0;
+    const poseRoll = pose ? (pose.roll || 0) * poseMix : 0;
+    // 足の開き。1 が普段どおり。広げると大の字、狭めると団子になる
+    const legSpread = pose ? lerp(1, pose.legs === undefined ? 1 : pose.legs, poseMix) : 1;
 
     /* 向きの考え方。
        進行方向を向いて滑るのが自然なので、既定は「背中を見せる」= 角度 π。
@@ -70,7 +82,8 @@
       ctx.fill();
     }
 
-    ctx.rotate(crash ? st.crashRot || 0 : lean * 0.45);
+    // 技の傾きは体ごと回す。小さく映っていても形で見分けがつくのはここ
+    ctx.rotate(crash ? st.crashRot || 0 : lean * 0.45 + poseRoll);
     ctx.scale(flat * u, u * sq);   // 以降はメートル単位で描ける
     ctx.scale(facing, 1);
 
@@ -79,11 +92,12 @@
 
     /* --- スノーボード（後ろから見た形） --- */
     ctx.save();
-    ctx.rotate(-lean * 0.25);
+    ctx.translate(0, -lift);
+    ctx.rotate(-lean * 0.25 + boardTilt);
     const bw = 0.44, bh = 0.10;
-    ctx.fillStyle = BOARD_D;
+    ctx.fillStyle = S.boardD;
     roundRect(ctx, -bw, -bh * 0.4, bw * 2, bh * 1.5, bh * 0.7); ctx.fill();
-    ctx.fillStyle = BOARD;
+    ctx.fillStyle = S.board;
     roundRect(ctx, -bw * 0.96, -bh * 0.9, bw * 1.92, bh * 1.3, bh * 0.65); ctx.fill();
     // トップシートの模様（雪の結晶っぽい線）
     ctx.strokeStyle = 'rgba(255,255,255,0.75)';
@@ -96,45 +110,65 @@
     ctx.restore();
 
     const yBoard = -0.10;
+    const yFoot = yBoard - lift;      // 板と一緒に足が上がる＝脚が畳まれる
 
     /* --- 脚とブーツ --- */
     for (const side of [-1, 1]) {
-      const bx = side * 0.17;
-      capsule(ctx, bx, yBoard - 0.30 + crouch, bx * 0.9, yBoard - 0.02, 0.075, FUR_D);
-      ctx.fillStyle = BOOT;
-      roundRect(ctx, bx - 0.10, yBoard - 0.14, 0.20, 0.14, 0.05); ctx.fill();
+      const bx = side * 0.17 * legSpread;
+      capsule(ctx, bx, yBoard - 0.30 + crouch, bx * 0.9, yFoot - 0.02, 0.075, S.furD);
+      ctx.fillStyle = S.boot;
+      roundRect(ctx, bx - 0.10, yFoot - 0.14, 0.20, 0.14, 0.05); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillRect(bx - 0.09, yBoard - 0.10, 0.18, 0.022);
+      ctx.fillRect(bx - 0.09, yFoot - 0.10, 0.18, 0.022);
     }
 
     const yBody = yBoard - 0.34 + crouch + bob;
 
     /* --- 奥側の腕（体の後ろに描く） --- */
     const armSwing = air ? -0.9 : lerp(0.25, -0.15, tuck) + Math.sin(t * 4) * 0.06;
-    const armLen = 0.34;
+    // 技のときは腕をめいっぱい伸ばす。短いままだと角度を変えても違いが出ない
+    const armLen = 0.34 + (pose ? 0.12 * poseMix : 0);
     const drawArm = (side, back) => {
-      const sx = side * 0.20, sy = yBody - 0.10;
-      const a = armSwing + side * (air ? 0.5 : 0.25) - lean * side * 0.5;
-      const ex = sx + side * Math.cos(a) * armLen;
-      const ey = sy - Math.sin(a) * armLen;
-      capsule(ctx, sx, sy, ex, ey, 0.078, back ? FUR_D : FUR);
-      ctx.fillStyle = back ? FUR_D : FUR;
+      // 技のときは肩を少し外へ出す。真上に上げた手が頭に隠れてしまうため
+      const sx = side * (0.20 + (pose ? 0.05 * poseMix : 0)), sy = yBody - 0.10;
+      let ex, ey;
+      const grab = pose && pose.grab && pose.grab.side === side;
+      if (grab) {
+        // 板は傾いているので、掴む点も一緒に回してから狙う。
+        // そうしないと手が板から浮いて、掴んでいるように見えない
+        const ct = Math.cos(boardTilt), stt = Math.sin(boardTilt);
+        const gx = pose.grab.x, gy = -0.10;      // 板の上面
+        const tx = gx * ct - gy * stt;
+        const ty = gx * stt + gy * ct - lift;
+        ex = lerp(sx + side * armLen * 0.5, tx, poseMix);
+        ey = lerp(sy - armLen * 0.2, ty, poseMix);
+      } else {
+        const base = armSwing + side * (air ? 0.5 : 0.25) - lean * side * 0.5;
+        const target = pose ? pose.arms[side < 0 ? 0 : 1] : base;
+        const a = lerp(base, target, pose ? poseMix : 0);
+        ex = sx + side * Math.cos(a) * armLen;
+        ey = sy - Math.sin(a) * armLen;
+      }
+      capsule(ctx, sx, sy, ex, ey, 0.078, back ? S.furD : S.fur);
+      ctx.fillStyle = back ? S.furD : S.fur;
       ellipse(ctx, ex, ey, 0.085, 0.085); ctx.fill();
       // てのひらの色違い（ミトン風）
-      ctx.fillStyle = back ? '#c96f68' : SCARF;
+      ctx.fillStyle = back ? S.mittenD : S.mitten;
       ellipse(ctx, ex, ey, 0.062, 0.062); ctx.fill();
     };
-    drawArm(-1, true);
+    // 掴んでいる腕は必ず手前に描く。奥に回ると胴に隠れて何も見えない
+    const frontSide = pose && pose.grab ? pose.grab.side : 1;
+    drawArm(-frontSide, true);
 
     /* --- 胴体 --- */
-    ctx.fillStyle = FUR;
+    ctx.fillStyle = S.fur;
     ellipse(ctx, 0, yBody, 0.27, 0.26); ctx.fill();
     if (facing > 0) {
-      ctx.fillStyle = BELLY;
+      ctx.fillStyle = S.belly;
       ellipse(ctx, 0, yBody + 0.03, 0.18, 0.17); ctx.fill();
     } else {
       // 背中: 縫い目とぬいぐるみのタグ
-      ctx.strokeStyle = rgba(FUR_D, 0.9);
+      ctx.strokeStyle = rgba(S.furD, 0.9);
       ctx.lineWidth = 0.018;
       ctx.setLineDash([0.035, 0.03]);
       ctx.beginPath();
@@ -147,9 +181,9 @@
 
     /* --- マフラー --- */
     const wind = 0.10 + (st.speedRatio || 0) * 0.55;
-    ctx.fillStyle = SCARF;
+    ctx.fillStyle = S.scarf;
     ellipse(ctx, 0, yBody - 0.22, 0.20, 0.085); ctx.fill();
-    ctx.fillStyle = SCARF_D;
+    ctx.fillStyle = S.scarfD;
     ctx.beginPath();
     const tailBase = yBody - 0.22;
     ctx.moveTo(-0.06, tailBase - 0.03);
@@ -177,27 +211,27 @@
 
     // 耳
     for (const side of [-1, 1]) {
-      ctx.fillStyle = FUR_D;
+      ctx.fillStyle = S.furD;
       ellipse(ctx, side * 0.235, -0.20, 0.105, 0.105); ctx.fill();
       if (headFacing > 0) {
-        ctx.fillStyle = EAR_IN;
+        ctx.fillStyle = S.earIn;
         ellipse(ctx, side * 0.245, -0.20, 0.055, 0.055); ctx.fill();
       }
     }
     // 顔の輪郭
-    ctx.fillStyle = FUR;
+    ctx.fillStyle = S.fur;
     ellipse(ctx, 0, 0, 0.30, 0.285); ctx.fill();
 
     if (headFacing > 0) {
       // マズル
-      ctx.fillStyle = MUZZLE;
+      ctx.fillStyle = S.muzzle;
       ellipse(ctx, 0, 0.10, 0.16, 0.115); ctx.fill();
       // 鼻と口
-      ctx.fillStyle = NOSE;
+      ctx.fillStyle = S.nose;
       ctx.beginPath();
       ctx.moveTo(-0.045, 0.045); ctx.lineTo(0.045, 0.045); ctx.lineTo(0, 0.10);
       ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = NOSE;
+      ctx.strokeStyle = S.nose;
       ctx.lineWidth = 0.016;
       ctx.beginPath();
       ctx.moveTo(0, 0.10); ctx.lineTo(0, 0.135);
@@ -209,18 +243,18 @@
       for (const side of [-1, 1]) {
         const ex = side * 0.125, ey = -0.02;
         if (crash) {
-          ctx.strokeStyle = NOSE; ctx.lineWidth = 0.024;
+          ctx.strokeStyle = S.nose; ctx.lineWidth = 0.024;
           ctx.beginPath();
           ctx.moveTo(ex - 0.04, ey - 0.04); ctx.lineTo(ex + 0.04, ey + 0.04);
           ctx.moveTo(ex + 0.04, ey - 0.04); ctx.lineTo(ex - 0.04, ey + 0.04);
           ctx.stroke();
         } else if (open > 0.15) {
-          ctx.fillStyle = NOSE;
+          ctx.fillStyle = S.nose;
           ellipse(ctx, ex, ey, 0.045, 0.052 * open); ctx.fill();
           ctx.fillStyle = 'rgba(255,255,255,0.95)';
           ellipse(ctx, ex - 0.016, ey - 0.020 * open, 0.017, 0.017 * open); ctx.fill();
         } else {
-          ctx.strokeStyle = NOSE; ctx.lineWidth = 0.022; ctx.lineCap = 'round';
+          ctx.strokeStyle = S.nose; ctx.lineWidth = 0.022; ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(ex - 0.045, ey); ctx.quadraticCurveTo(ex, ey + 0.03, ex + 0.045, ey);
           ctx.stroke();
@@ -232,7 +266,7 @@
       ellipse(ctx, 0.20, 0.07, 0.055, 0.038); ctx.fill();
     } else {
       // 後頭部の縫い目
-      ctx.strokeStyle = rgba(FUR_D, 0.85);
+      ctx.strokeStyle = rgba(S.furD, 0.85);
       ctx.lineWidth = 0.018;
       ctx.setLineDash([0.035, 0.03]);
       ctx.beginPath();
@@ -242,11 +276,11 @@
     }
 
     // ニット帽
-    ctx.fillStyle = HAT;
+    ctx.fillStyle = S.hat;
     ctx.beginPath();
     ctx.arc(0, -0.03, 0.305, Math.PI * 1.06, Math.PI * 1.94);
     ctx.closePath(); ctx.fill();
-    ctx.fillStyle = HAT_D;
+    ctx.fillStyle = S.hatD;
     roundRect(ctx, -0.305, -0.135, 0.61, 0.10, 0.05); ctx.fill();
     // ぼんぼり
     const pomX = -0.10 - Math.sin(t * 6) * 0.02;
@@ -270,7 +304,7 @@
     ctx.restore();
 
     /* --- 手前の腕 --- */
-    drawArm(1, false);
+    drawArm(frontSide, false);
 
     /* --- 転倒中の星 --- */
     if (crash) {
@@ -297,6 +331,7 @@
     ctx.fill();
   }
 
+  SB.plushieSkins = SKINS;
   SB.drawPlushie = drawPlushie;
   SB.drawStar = star;
 })(window);

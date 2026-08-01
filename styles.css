@@ -159,6 +159,38 @@ html, body {
 .boost-wrap.ready .boost-label { color: var(--warm); animation: blink 0.8s infinite; }
 @keyframes blink { 50% { opacity: 0.35; } }
 
+/* ライバルとの差。常に目に入る位置に小さく出す */
+.versus {
+  align-self: center;
+  /* 余白を上に寄せて、速度計のすぐ上に置く。
+     そうしないと縦画面では画面のまん中に浮いてしまう */
+  margin-top: auto;
+  margin-bottom: calc(var(--ui) * 0.02);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(20, 44, 80, 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-size: max(11px, calc(var(--ui) * 0.028));
+  font-weight: 800;
+  color: #fff;
+  transition: background .2s;
+}
+.versus.ahead { background: rgba(92, 176, 118, 0.5); }
+.versus-name { opacity: 0.85; }
+.versus b { font-variant-numeric: tabular-nums; }
+
+.verdict {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.verdict.win { color: #2f8f4e; }
+
 /* --- 操作ボタン ------------------------------------------------------ */
 #pad {
   position: fixed;

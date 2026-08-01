@@ -178,6 +178,38 @@ html, body {
 .boost-wrap.ready .boost-label { color: var(--warm); animation: blink 0.8s infinite; }
 @keyframes blink { 50% { opacity: 0.35; } }
 
+/* ライバルとの差。常に目に入る位置に小さく出す */
+.versus {
+  align-self: center;
+  /* 余白を上に寄せて、速度計のすぐ上に置く。
+     そうしないと縦画面では画面のまん中に浮いてしまう */
+  margin-top: auto;
+  margin-bottom: calc(var(--ui) * 0.02);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(20, 44, 80, 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  font-size: max(11px, calc(var(--ui) * 0.028));
+  font-weight: 800;
+  color: #fff;
+  transition: background .2s;
+}
+.versus.ahead { background: rgba(92, 176, 118, 0.5); }
+.versus-name { opacity: 0.85; }
+.versus b { font-variant-numeric: tabular-nums; }
+
+.verdict {
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--ink-soft);
+  margin-top: 2px;
+}
+.verdict.win { color: #2f8f4e; }
+
 /* --- 操作ボタン ------------------------------------------------------ */
 #pad {
   position: fixed;
@@ -715,6 +747,12 @@ button {
 
   <div class="combo" id="combo"></div>
 
+  <!-- ライバルとの差。前にいるか後ろにいるかを常に出す -->
+  <div class="versus" id="versus">
+    <span class="versus-name" id="versus-name">ライバル</span>
+    <b id="versus-gap">0m</b>
+  </div>
+
   <div class="hud-bottom">
     <div class="speedo"><span id="speed">0</span><small>km/h</small></div>
     <div class="boost-wrap">
@@ -782,11 +820,12 @@ button {
       <summary>あそびかた</summary>
       <ul>
         <li><b>左下の板</b> … 触れた側へ曲がる。押したまま指を滑らせると即座に切り替わり、外側を押すほど深く曲がります</li>
-        <li><b>右下の板・上半分</b> … ジャンプ（空中で左下を押すと回転トリック）</li>
+        <li><b>右下の板・上半分</b> … ジャンプ。跳ぶたびに<b>技がランダムで変わります</b>（10種類）。空中で左下を押すと回転が加わって、「ばんざい 360°」のようにつながります</li>
         <li><b>右下の板・下半分</b> … しゃがんで加速／空中ではグラブ</li>
         <li><b>⚡ ボタン</b> … ブースト（ゲージ50%以上で光ったら押せる・障害物を粉砕）</li>
         <li>画面を<b>ドラッグ／フリック</b>する操作も、そのまま使えます</li>
         <li>金の鈴を連続で取るとコンボ倍率が上がります</li>
+        <li>いつも誰かが一緒に滑っています。画面下の帯が今の差。<b>しゃがんで加速</b>したり<b>ブースト</b>を使えば追い抜けます</li>
         <li>PCは <b>← →</b> ／ <b>Space</b> ／ <b>↓</b> ／ <b>Shift</b></li>
       </ul>
       <p class="tip">横向きの画面がおすすめです。</p>
@@ -821,6 +860,7 @@ button {
       <h2 id="result-title">ゴール！</h2>
       <div class="result-score" id="result-score">0</div>
       <div class="earned">🔔 <b id="result-earned">+0</b> <span>手持ち <i id="result-coins">0</i></span></div>
+      <div class="verdict" id="result-verdict"></div>
     </div>
     <div class="col">
       <div class="result-grid">
@@ -947,6 +987,85 @@ button {
   SB.util = {
     clamp, lerp, smoothstep, easeOutCubic, easeOutBack, damp,
     makeRng, mixHex, shade, rgba, roundRect, ellipse, fmt, store, TAU: Math.PI * 2,
+  };
+})(window);
+
+/* ===== src/tricks.js ===== */
+/* 技 -------------------------------------------------------------------------
+   操作は今までどおり「跳ぶ」だけ。跳んだ瞬間にこの中から1つ選ばれ、
+   ポーズと名前が変わる。空中で左右に振れば回転が加わり、名前も
+   「ばんざい 360°」のようにつながる。
+
+   pose の見かた（すべて省略可）
+     arms  … [左腕, 右腕] の角度。0 = 真横、+ = 上、- = 下（ラジアン）
+     grab  … { side: -1|1, x: 板の上のつかむ位置 } どちらの手で板をつかむか
+     lift  … 板と足を体へ引きつける量（グラブらしさはここで決まる）
+     tilt  … 板だけの傾き
+     roll  … 体ごとの傾き。遠くの小さい絵でも見分けがつくのはこれ
+     legs  … 足の開き。1 が普段どおり、大きいと大の字、小さいと団子   */
+(function (global) {
+  'use strict';
+  const SB = global.SB || (global.SB = {});
+
+  const TRICKS = [
+    {
+      id: 'banzai', name: 'ばんざい', points: 60,
+      pose: { arms: [1.15, 1.15], lift: 0.02, legs: 1.15 },
+    },
+    {
+      id: 'butterfly', name: 'ちょうちょ', points: 70,
+      pose: { arms: [0.05, 0.05], lift: 0, tilt: 0.12, legs: 1.5 },
+    },
+    {
+      id: 'dango', name: 'だんごむし', points: 90,
+      pose: { arms: [-1.25, -1.25], lift: 0.14, legs: 0.5 },
+    },
+    {
+      id: 'rocket', name: 'ロケット', points: 85,
+      pose: { arms: [1.2, 1.2], lift: -0.04, tilt: 0.28, roll: 0.4, legs: 0.7 },
+    },
+    {
+      id: 'foldArms', name: 'うでぐみ', points: 95,
+      pose: { arms: [-0.25, -0.25], lift: 0.05, roll: 0.22, legs: 0.75 },
+    },
+    {
+      id: 'grabToe', name: 'つまさきグラブ', points: 120,
+      pose: { arms: [0, 1.2], grab: { side: -1, x: -0.42 }, lift: 0.09, tilt: -0.26, roll: -0.34 },
+    },
+    {
+      id: 'grabHeel', name: 'かかとグラブ', points: 120,
+      pose: { arms: [1.2, 0], grab: { side: 1, x: 0.42 }, lift: 0.09, tilt: 0.26, roll: 0.34 },
+    },
+    {
+      id: 'scarecrow', name: 'かかしポーズ', points: 75,
+      pose: { arms: [1.2, -1.35], lift: 0.03, tilt: -0.14, roll: -0.16, legs: 1.55 },
+    },
+    {
+      id: 'lieDown', name: 'ねそべり', points: 100,
+      pose: { arms: [1.1, -1.0], lift: 0.08, tilt: 0.1, roll: -0.55, legs: 1.2 },
+    },
+    {
+      id: 'superman', name: 'とびだしポーズ', points: 130,
+      pose: { arms: [0.6, 0.6], lift: -0.06, tilt: 0.4, roll: 0.62, legs: 0.85 },
+    },
+  ];
+
+  const byId = {};
+  for (const t of TRICKS) byId[t.id] = t;
+
+  SB.tricks = {
+    list: TRICKS,
+    get(id) { return byId[id]; },
+
+    /* 跳ぶたびに1つ選ぶ。直前と同じ技は避けて、変化を感じられるようにする */
+    pick(prevId) {
+      if (TRICKS.length < 2) return TRICKS[0];
+      let t = TRICKS[Math.floor(Math.random() * TRICKS.length)];
+      if (t.id === prevId) {
+        t = TRICKS[(TRICKS.indexOf(t) + 1 + Math.floor(Math.random() * (TRICKS.length - 1))) % TRICKS.length];
+      }
+      return t;
+    },
   };
 })(window);
 
@@ -2893,19 +3012,22 @@ button {
   const SB = global.SB || (global.SB = {});
   const { clamp, lerp, roundRect, ellipse, rgba, TAU } = SB.util;
 
-  const FUR = '#e6bd91';
-  const FUR_D = '#cfa176';
-  const BELLY = '#f6e7d2';
-  const MUZZLE = '#f8ecd9';
-  const EAR_IN = '#f0aeae';
-  const HAT = '#6fcbbd';
-  const HAT_D = '#4fae9f';
-  const SCARF = '#e2483f';
-  const SCARF_D = '#b8352d';
-  const BOARD = '#4a7ce0';
-  const BOARD_D = '#2f57ac';
-  const BOOT = '#3b4150';
-  const NOSE = '#5b4034';
+  /* 見た目一式。ライバルには別の組み合わせを渡す */
+  const SKINS = {
+    bear: {
+      fur: '#e6bd91', furD: '#cfa176', belly: '#f6e7d2', muzzle: '#f8ecd9',
+      earIn: '#f0aeae', hat: '#6fcbbd', hatD: '#4fae9f',
+      scarf: '#e2483f', scarfD: '#b8352d', mitten: '#e2483f', mittenD: '#c96f68',
+      board: '#4a7ce0', boardD: '#2f57ac', boot: '#3b4150', nose: '#5b4034',
+    },
+    // ライバル。ひと目で見分けられるよう色相をずらす
+    rival: {
+      fur: '#d8d3e8', furD: '#bdb6d4', belly: '#f2eff8', muzzle: '#faf7ff',
+      earIn: '#e8aecb', hat: '#f2a2bf', hatD: '#d97fa2',
+      scarf: '#5cc2b4', scarfD: '#3f9d90', mitten: '#5cc2b4', mittenD: '#4aa79a',
+      board: '#f2b23c', boardD: '#c98a1c', boot: '#4a4358', nose: '#5a4a63',
+    },
+  };
 
   function capsule(ctx, x1, y1, x2, y2, r, color) {
     ctx.strokeStyle = color;
@@ -2926,6 +3048,15 @@ button {
     const crash = st.crash || 0;
     const t = st.t || 0;
     const sq = st.squash || 1;   // 1 = 通常、<1 で潰れる
+    const S = st.skin || SKINS.bear;
+    // 技のポーズは空中でだけ効かせる。着地したら普通の姿勢へ戻す
+    const pose = (st.air && st.pose) ? st.pose : null;
+    const poseMix = clamp(st.poseMix === undefined ? (pose ? 1 : 0) : st.poseMix, 0, 1);
+    const lift = pose ? (pose.lift || 0) * poseMix : 0;
+    const boardTilt = pose ? (pose.tilt || 0) * poseMix : 0;
+    const poseRoll = pose ? (pose.roll || 0) * poseMix : 0;
+    // 足の開き。1 が普段どおり。広げると大の字、狭めると団子になる
+    const legSpread = pose ? lerp(1, pose.legs === undefined ? 1 : pose.legs, poseMix) : 1;
 
     /* 向きの考え方。
        進行方向を向いて滑るのが自然なので、既定は「背中を見せる」= 角度 π。
@@ -2957,7 +3088,8 @@ button {
       ctx.fill();
     }
 
-    ctx.rotate(crash ? st.crashRot || 0 : lean * 0.45);
+    // 技の傾きは体ごと回す。小さく映っていても形で見分けがつくのはここ
+    ctx.rotate(crash ? st.crashRot || 0 : lean * 0.45 + poseRoll);
     ctx.scale(flat * u, u * sq);   // 以降はメートル単位で描ける
     ctx.scale(facing, 1);
 
@@ -2966,11 +3098,12 @@ button {
 
     /* --- スノーボード（後ろから見た形） --- */
     ctx.save();
-    ctx.rotate(-lean * 0.25);
+    ctx.translate(0, -lift);
+    ctx.rotate(-lean * 0.25 + boardTilt);
     const bw = 0.44, bh = 0.10;
-    ctx.fillStyle = BOARD_D;
+    ctx.fillStyle = S.boardD;
     roundRect(ctx, -bw, -bh * 0.4, bw * 2, bh * 1.5, bh * 0.7); ctx.fill();
-    ctx.fillStyle = BOARD;
+    ctx.fillStyle = S.board;
     roundRect(ctx, -bw * 0.96, -bh * 0.9, bw * 1.92, bh * 1.3, bh * 0.65); ctx.fill();
     // トップシートの模様（雪の結晶っぽい線）
     ctx.strokeStyle = 'rgba(255,255,255,0.75)';
@@ -2983,45 +3116,65 @@ button {
     ctx.restore();
 
     const yBoard = -0.10;
+    const yFoot = yBoard - lift;      // 板と一緒に足が上がる＝脚が畳まれる
 
     /* --- 脚とブーツ --- */
     for (const side of [-1, 1]) {
-      const bx = side * 0.17;
-      capsule(ctx, bx, yBoard - 0.30 + crouch, bx * 0.9, yBoard - 0.02, 0.075, FUR_D);
-      ctx.fillStyle = BOOT;
-      roundRect(ctx, bx - 0.10, yBoard - 0.14, 0.20, 0.14, 0.05); ctx.fill();
+      const bx = side * 0.17 * legSpread;
+      capsule(ctx, bx, yBoard - 0.30 + crouch, bx * 0.9, yFoot - 0.02, 0.075, S.furD);
+      ctx.fillStyle = S.boot;
+      roundRect(ctx, bx - 0.10, yFoot - 0.14, 0.20, 0.14, 0.05); ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,0.35)';
-      ctx.fillRect(bx - 0.09, yBoard - 0.10, 0.18, 0.022);
+      ctx.fillRect(bx - 0.09, yFoot - 0.10, 0.18, 0.022);
     }
 
     const yBody = yBoard - 0.34 + crouch + bob;
 
     /* --- 奥側の腕（体の後ろに描く） --- */
     const armSwing = air ? -0.9 : lerp(0.25, -0.15, tuck) + Math.sin(t * 4) * 0.06;
-    const armLen = 0.34;
+    // 技のときは腕をめいっぱい伸ばす。短いままだと角度を変えても違いが出ない
+    const armLen = 0.34 + (pose ? 0.12 * poseMix : 0);
     const drawArm = (side, back) => {
-      const sx = side * 0.20, sy = yBody - 0.10;
-      const a = armSwing + side * (air ? 0.5 : 0.25) - lean * side * 0.5;
-      const ex = sx + side * Math.cos(a) * armLen;
-      const ey = sy - Math.sin(a) * armLen;
-      capsule(ctx, sx, sy, ex, ey, 0.078, back ? FUR_D : FUR);
-      ctx.fillStyle = back ? FUR_D : FUR;
+      // 技のときは肩を少し外へ出す。真上に上げた手が頭に隠れてしまうため
+      const sx = side * (0.20 + (pose ? 0.05 * poseMix : 0)), sy = yBody - 0.10;
+      let ex, ey;
+      const grab = pose && pose.grab && pose.grab.side === side;
+      if (grab) {
+        // 板は傾いているので、掴む点も一緒に回してから狙う。
+        // そうしないと手が板から浮いて、掴んでいるように見えない
+        const ct = Math.cos(boardTilt), stt = Math.sin(boardTilt);
+        const gx = pose.grab.x, gy = -0.10;      // 板の上面
+        const tx = gx * ct - gy * stt;
+        const ty = gx * stt + gy * ct - lift;
+        ex = lerp(sx + side * armLen * 0.5, tx, poseMix);
+        ey = lerp(sy - armLen * 0.2, ty, poseMix);
+      } else {
+        const base = armSwing + side * (air ? 0.5 : 0.25) - lean * side * 0.5;
+        const target = pose ? pose.arms[side < 0 ? 0 : 1] : base;
+        const a = lerp(base, target, pose ? poseMix : 0);
+        ex = sx + side * Math.cos(a) * armLen;
+        ey = sy - Math.sin(a) * armLen;
+      }
+      capsule(ctx, sx, sy, ex, ey, 0.078, back ? S.furD : S.fur);
+      ctx.fillStyle = back ? S.furD : S.fur;
       ellipse(ctx, ex, ey, 0.085, 0.085); ctx.fill();
       // てのひらの色違い（ミトン風）
-      ctx.fillStyle = back ? '#c96f68' : SCARF;
+      ctx.fillStyle = back ? S.mittenD : S.mitten;
       ellipse(ctx, ex, ey, 0.062, 0.062); ctx.fill();
     };
-    drawArm(-1, true);
+    // 掴んでいる腕は必ず手前に描く。奥に回ると胴に隠れて何も見えない
+    const frontSide = pose && pose.grab ? pose.grab.side : 1;
+    drawArm(-frontSide, true);
 
     /* --- 胴体 --- */
-    ctx.fillStyle = FUR;
+    ctx.fillStyle = S.fur;
     ellipse(ctx, 0, yBody, 0.27, 0.26); ctx.fill();
     if (facing > 0) {
-      ctx.fillStyle = BELLY;
+      ctx.fillStyle = S.belly;
       ellipse(ctx, 0, yBody + 0.03, 0.18, 0.17); ctx.fill();
     } else {
       // 背中: 縫い目とぬいぐるみのタグ
-      ctx.strokeStyle = rgba(FUR_D, 0.9);
+      ctx.strokeStyle = rgba(S.furD, 0.9);
       ctx.lineWidth = 0.018;
       ctx.setLineDash([0.035, 0.03]);
       ctx.beginPath();
@@ -3034,9 +3187,9 @@ button {
 
     /* --- マフラー --- */
     const wind = 0.10 + (st.speedRatio || 0) * 0.55;
-    ctx.fillStyle = SCARF;
+    ctx.fillStyle = S.scarf;
     ellipse(ctx, 0, yBody - 0.22, 0.20, 0.085); ctx.fill();
-    ctx.fillStyle = SCARF_D;
+    ctx.fillStyle = S.scarfD;
     ctx.beginPath();
     const tailBase = yBody - 0.22;
     ctx.moveTo(-0.06, tailBase - 0.03);
@@ -3064,27 +3217,27 @@ button {
 
     // 耳
     for (const side of [-1, 1]) {
-      ctx.fillStyle = FUR_D;
+      ctx.fillStyle = S.furD;
       ellipse(ctx, side * 0.235, -0.20, 0.105, 0.105); ctx.fill();
       if (headFacing > 0) {
-        ctx.fillStyle = EAR_IN;
+        ctx.fillStyle = S.earIn;
         ellipse(ctx, side * 0.245, -0.20, 0.055, 0.055); ctx.fill();
       }
     }
     // 顔の輪郭
-    ctx.fillStyle = FUR;
+    ctx.fillStyle = S.fur;
     ellipse(ctx, 0, 0, 0.30, 0.285); ctx.fill();
 
     if (headFacing > 0) {
       // マズル
-      ctx.fillStyle = MUZZLE;
+      ctx.fillStyle = S.muzzle;
       ellipse(ctx, 0, 0.10, 0.16, 0.115); ctx.fill();
       // 鼻と口
-      ctx.fillStyle = NOSE;
+      ctx.fillStyle = S.nose;
       ctx.beginPath();
       ctx.moveTo(-0.045, 0.045); ctx.lineTo(0.045, 0.045); ctx.lineTo(0, 0.10);
       ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = NOSE;
+      ctx.strokeStyle = S.nose;
       ctx.lineWidth = 0.016;
       ctx.beginPath();
       ctx.moveTo(0, 0.10); ctx.lineTo(0, 0.135);
@@ -3096,18 +3249,18 @@ button {
       for (const side of [-1, 1]) {
         const ex = side * 0.125, ey = -0.02;
         if (crash) {
-          ctx.strokeStyle = NOSE; ctx.lineWidth = 0.024;
+          ctx.strokeStyle = S.nose; ctx.lineWidth = 0.024;
           ctx.beginPath();
           ctx.moveTo(ex - 0.04, ey - 0.04); ctx.lineTo(ex + 0.04, ey + 0.04);
           ctx.moveTo(ex + 0.04, ey - 0.04); ctx.lineTo(ex - 0.04, ey + 0.04);
           ctx.stroke();
         } else if (open > 0.15) {
-          ctx.fillStyle = NOSE;
+          ctx.fillStyle = S.nose;
           ellipse(ctx, ex, ey, 0.045, 0.052 * open); ctx.fill();
           ctx.fillStyle = 'rgba(255,255,255,0.95)';
           ellipse(ctx, ex - 0.016, ey - 0.020 * open, 0.017, 0.017 * open); ctx.fill();
         } else {
-          ctx.strokeStyle = NOSE; ctx.lineWidth = 0.022; ctx.lineCap = 'round';
+          ctx.strokeStyle = S.nose; ctx.lineWidth = 0.022; ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(ex - 0.045, ey); ctx.quadraticCurveTo(ex, ey + 0.03, ex + 0.045, ey);
           ctx.stroke();
@@ -3119,7 +3272,7 @@ button {
       ellipse(ctx, 0.20, 0.07, 0.055, 0.038); ctx.fill();
     } else {
       // 後頭部の縫い目
-      ctx.strokeStyle = rgba(FUR_D, 0.85);
+      ctx.strokeStyle = rgba(S.furD, 0.85);
       ctx.lineWidth = 0.018;
       ctx.setLineDash([0.035, 0.03]);
       ctx.beginPath();
@@ -3129,11 +3282,11 @@ button {
     }
 
     // ニット帽
-    ctx.fillStyle = HAT;
+    ctx.fillStyle = S.hat;
     ctx.beginPath();
     ctx.arc(0, -0.03, 0.305, Math.PI * 1.06, Math.PI * 1.94);
     ctx.closePath(); ctx.fill();
-    ctx.fillStyle = HAT_D;
+    ctx.fillStyle = S.hatD;
     roundRect(ctx, -0.305, -0.135, 0.61, 0.10, 0.05); ctx.fill();
     // ぼんぼり
     const pomX = -0.10 - Math.sin(t * 6) * 0.02;
@@ -3157,7 +3310,7 @@ button {
     ctx.restore();
 
     /* --- 手前の腕 --- */
-    drawArm(1, false);
+    drawArm(frontSide, false);
 
     /* --- 転倒中の星 --- */
     if (crash) {
@@ -3184,8 +3337,182 @@ button {
     ctx.fill();
   }
 
+  SB.plushieSkins = SKINS;
   SB.drawPlushie = drawPlushie;
   SB.drawStar = star;
+})(window);
+
+/* ===== src/rival.js ===== */
+/* ライバル -------------------------------------------------------------------
+   一緒に滑る相手。追いつけない相手でも、置いていくだけの相手でもつまらない
+   ので、離れすぎたら速さを寄せる（ゴムひもで結ばれているイメージ）。
+   見えないところで勝手に決まるのではなく、常に画面の中で競っている状態を
+   保つのが目的。                                                            */
+(function (global) {
+  'use strict';
+  const SB = global.SB || (global.SB = {});
+  const { clamp, damp, lerp } = SB.util;
+  const C = SB.C;
+
+  const NAMES = ['ももちゃん', 'ゆきちゃん', 'こむぎ', 'あられ', 'きなこ'];
+
+  class Rival {
+    constructor() { this.reset(); }
+
+    reset() {
+      this.name = NAMES[Math.floor(Math.random() * NAMES.length)];
+      this.z = 9;               // 少し前からスタートして、追う気持ちを作る
+      this.x = 2.4;
+      this.vx = 0;
+      this.speed = 14;
+      this.lean = 0;
+      this.y = 0;
+      this.vy = 0;
+      this.air = false;
+      this.t = 0;
+      this.targetX = 0;
+      this.pose = null;
+      this.poseMix = 0;
+      this.blink = 1;
+      this.blinkTimer = 2;
+      this.jumpCooldown = 2;
+      this.bestGap = 0;         // どれだけ引き離されたか（最大値）
+    }
+
+    /* 前方の障害物を避ける進路を選ぶ。まず今の位置のまま行けるかを見て、
+       だめなら左右にずらした候補から、いちばん安全なものを選ぶ。 */
+    chooseLane(world, dt) {
+      const half = C.PISTE_HALF - 1;
+      const objs = world.objects;
+      const cost = (x) => {
+        let c = Math.abs(x - this.x) * 0.35;          // 大きく動くほど不利
+        for (let i = world.head; i < objs.length; i++) {
+          const o = objs[i];
+          const dz = o.z - this.z;
+          if (dz > 34) break;
+          if (dz < 0) continue;
+          if (o.solid && !o.smashed) {
+            const d = Math.abs(o.x - x);
+            if (d < 2.2) c += (2.2 - d) * (34 - dz) * 0.5;   // 近い障害ほど重く見る
+          } else if (o.type === 'bell' && !o.taken) {
+            if (Math.abs(o.x - x) < 1.4) c -= 1.2;           // 鈴は少し寄っていく
+          }
+        }
+        return c;
+      };
+
+      let best = this.x, bestCost = Infinity;
+      for (let k = -4; k <= 4; k++) {
+        const x = clamp(this.x + k * 1.7, -half, half);
+        const c = cost(x);
+        if (c < bestCost) { bestCost = c; best = x; }
+      }
+      this.targetX = best;
+    }
+
+    update(dt, player, world, difficulty) {
+      this.t += dt;
+      if (dt <= 0) return;
+
+      /* 速さ。素の巡航速度はプレイヤーのそれよりわずかに遅くしてある。
+         だから普通に滑っていれば横に並び、しゃがんで加速したりブースト
+         したりすれば前に出られる。逆に転べば置いていかれる。
+         そのうえで、離れすぎたぶんだけゴムひものように寄せる。 */
+      const gap = this.z - player.z;
+      const base = 13.0 + difficulty * 12.6;
+      let target = base;
+      if (gap > 30) target -= Math.min(8, (gap - 30) * 0.22);   // 前に出すぎたら緩める
+      if (gap < -30) target += Math.min(6, (-gap - 30) * 0.16); // 離されたら少し本気
+      // プレイヤーが転んでいる間は少しだけ待ってあげる（置き去りにしない）
+      if (player.crash > 0) target = Math.min(target, player.speed + 8);
+      this.speed = damp(this.speed, Math.max(6, target), 1.4, dt);
+      this.z += this.speed * dt;
+
+      /* 進路 */
+      if (!this.laneTimer || this.laneTimer <= 0) {
+        this.chooseLane(world, dt);
+        this.laneTimer = 0.25;
+      }
+      this.laneTimer -= dt;
+      const dx = this.targetX - this.x;
+      this.vx = damp(this.vx, clamp(dx * 2.2, -7, 7), 6, dt);
+      this.x += this.vx * dt;
+      this.lean = damp(this.lean, clamp(this.vx / 6, -1, 1), 7, dt);
+
+      /* たまに跳ぶ。技も出す（見ていて楽しいので） */
+      this.jumpCooldown -= dt;
+      if (this.air) {
+        this.vy -= 22 * dt;
+        this.y += this.vy * dt;
+        if (this.y <= 0) {
+          this.y = 0; this.air = false; this.pose = null;
+          this.jumpCooldown = 1.6 + Math.random() * 3.5;
+        }
+      } else if (this.jumpCooldown <= 0) {
+        this.air = true;
+        this.vy = 7 + Math.random() * 2.4;
+        this.pose = SB.tricks ? SB.tricks.pick(this.pose && this.pose.id).pose : null;
+      }
+      this.poseMix = damp(this.poseMix, this.air && this.pose ? 1 : 0, 12, dt);
+
+      /* まばたき */
+      this.blinkTimer -= dt;
+      if (this.blinkTimer <= 0) { this.blinkTimer = 2 + Math.random() * 4; this.blinkAnim = 0.18; }
+      if (this.blinkAnim > 0) { this.blinkAnim -= dt; this.blink = this.blinkAnim > 0.09 ? 0.1 : 1; }
+      else this.blink = 1;
+
+      if (gap > this.bestGap) this.bestGap = gap;
+    }
+
+    /* 画面に描く。自分より後ろにいるときはカメラに映らないので、
+       そのぶんは HUD の差の表示で伝える。 */
+    draw(ctx, renderer, player) {
+      const gy = SB.terrainY(this.z);
+      const rider = renderer.project(SB.centerX(this.z) + this.x, gy + this.y, this.z);
+      const ground = renderer.project(SB.centerX(this.z) + this.x, gy, this.z);
+      if (!rider) return;
+      if (rider.x < -renderer.W * 0.5 || rider.x > renderer.W * 1.5) return;
+      /* 抜き返したあと相手が真横まで来ると、画面いっぱいに膨らんで
+         操作ボタンにかぶる。手前に来るほど薄くして、静かに消す。 */
+      const fade = clamp((rider.dz - 5) / 4, 0, 1);
+      if (fade <= 0) return;
+
+      ctx.save();
+      ctx.globalAlpha = fade;
+      SB.drawPlushie(ctx, rider.x, rider.y, rider.s, {
+        skin: SB.plushieSkins.rival,
+        lean: this.lean,
+        spin: 0,
+        air: this.air,
+        pose: this.pose,
+        poseMix: this.poseMix,
+        tuck: 0,
+        crash: 0,
+        t: this.t,
+        blink: this.blink,
+        squash: 1,
+        speedRatio: clamp((this.speed - 12) / 26, 0, 1),
+        shadowY: ground ? ground.y - rider.y : 0,
+      });
+
+      // 名札。誰と競っているのか分かるように、頭の上に小さく出す
+      const size = clamp(rider.s * 0.2, 9, 22);
+      ctx.save();
+      ctx.font = `800 ${size}px system-ui, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'bottom';
+      ctx.lineWidth = size * 0.22;
+      ctx.strokeStyle = 'rgba(24,48,84,0.45)';
+      ctx.strokeText(this.name, rider.x, rider.y - rider.s * 1.75);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(this.name, rider.x, rider.y - rider.s * 1.75);
+      ctx.restore();
+
+      ctx.restore();
+    }
+  }
+
+  SB.Rival = Rival;
 })(window);
 
 /* ===== src/game.js ===== */
@@ -3201,7 +3528,7 @@ button {
   const GRAVITY = 22;
   const BASE_HEARTS = 3;
 
-  const TRICK_NAMES = { 1: 'SPIN 360°', 2: 'SPIN 720°', 3: 'SPIN 1080°', 4: 'SPIN 1440°' };
+  const SPIN_NAMES = { 1: '360°', 2: '720°', 3: '1080°', 4: '1440°' };
 
   class Game {
     constructor(renderer, input, ui) {
@@ -3214,6 +3541,7 @@ button {
       this.bestDist = Number(store.get('sb_bestdist', 0));
 
       this.world = new SB.World();
+      this.rival = new SB.Rival();
       this.flakes = [];
       for (let i = 0; i < 70; i++) {
         this.flakes.push({ x: Math.random(), y: Math.random(), d: Math.random(), r: 1 + Math.random() * 2.2, drift: Math.random() * TAU });
@@ -3235,6 +3563,9 @@ button {
       this.floaters = [];
       this.sprayAcc = 0;
       this.punch = 0;
+      this.trick = null;
+      if (this.rival) this.rival.reset();
+      this.rivalLead = false;    // 直前フレームで相手より前にいたか
       this.magnetRange = 3.2 * (1 + SB.shop.lv('magnet') * 0.35);
       this.boostGain = 1 + SB.shop.lv('boost') * 0.30;
       this.demo = !!demo;
@@ -3244,7 +3575,7 @@ button {
         air: false, airTime: 0, squash: 1,
         blink: 1, blinkTimer: 2,
         crash: 0, crashRot: 0, invuln: 0,
-        grabbed: 0, look: 0,
+        grabbed: 0, look: 0, poseMix: 0,
       };
       this.score = 0;
       this.combo = 0;
@@ -3282,6 +3613,7 @@ button {
         score: this.score, distance: this.distance, bells: this.bells,
         tricks: this.tricks, best: this.best, isBest,
         earned, coins: SB.shop.coins,
+        rivalName: this.rival.name, rivalGap: this.distance - this.rival.z,
       });
       this.ui.setHud(false);
     }
@@ -3401,6 +3733,8 @@ button {
 
       // ジャンプ中と転倒中だけ、肩越しにこちらを向く
       p.look = damp(p.look, (p.air || p.crash > 0) ? 1 : 0, 11, dt);
+      // 技のポーズは跳んだ直後にすっと決まり、着地でほどける
+      p.poseMix = damp(p.poseMix, (p.air && this.trick && !p.crash) ? 1 : 0, 14, dt);
 
       /* まばたき */
       p.blinkTimer -= dt;
@@ -3425,6 +3759,21 @@ button {
       /* ワールド */
       this.world.ensure(p.z - CAM_BACK, diffRamp);
       if (!this.demo && running) this.collide(dt);
+      if (!this.demo) {
+        // カウントダウン中も一緒に助走する。ここで止めると、その間に
+        // こちらだけ 20m 以上進んでしまい、勝負にならない
+        const rolling = running || this.state === 'ready';
+        this.rival.update(rolling ? dt : 0, p, this.world, diffRamp);
+        // 抜いた・抜かれた瞬間を伝える。数字だけだと気づきにくい
+        if (running) {
+          const lead = this.rival.z < p.z;
+          if (lead !== this.rivalLead) {
+            this.rivalLead = lead;
+            if (lead) { this.popup(`${this.rival.name}を ぬいた！`, '#ffd25e'); SB.audio.trick(1.2); }
+            else this.popup(`${this.rival.name}に ぬかれた`, '#bfe6ff');
+          }
+        }
+      }
 
       /* カメラ */
       const cam = this.cam;
@@ -3466,6 +3815,7 @@ button {
         this.ui.updateHud({
           score: this.score, distance: this.distance, speed: p.speed * 3.6,
           combo: this.combo, hearts: this.hearts, maxHearts: this.maxHearts, boost: this.boost,
+          rivalName: this.rival.name, rivalGap: this.rival.z - p.z,
           boosting: this.boostTime > 0,
         });
       }
@@ -3478,8 +3828,21 @@ button {
       p.airTime = 0;
       p.grabbed = 0;
       p.squash = 1.12;
+      this.startTrick();
       this.spray(10, 1.4);
       SB.audio.jump();
+    }
+
+    /* 跳ぶたびに技を1つ選ぶ。操作は増やさず、見た目と名前だけが変わる */
+    startTrick() {
+      // 直前の技は着地時に消えるので、別に覚えておかないと同じ技が続く
+      this.trick = SB.tricks.pick(this.lastTrickId);
+      this.lastTrickId = this.trick.id;
+      this.floater(
+        { x: this.p.x, y: 2.0, z: this.p.z + 1 },
+        this.trick.name, '#ffffff', 1.1
+      );
+      SB.audio.trick(1);
     }
 
     land() {
@@ -3492,22 +3855,30 @@ button {
       SB.audio.land();
       this.shake = Math.max(this.shake, Math.min(0.4, p.airTime * 0.25));
 
-      // 回転トリックの判定（270°以上で1回転ぶんとみなす）
+      /* 決まった技をまとめて精算する。
+         技そのもの＋回転ぶん＋グラブぶんを1つの名前にして出す。 */
       const rot = Math.floor(Math.abs(p.spin) / (TAU * 0.75));
-      if (rot > 0 && !p.crash) {
-        const name = TRICK_NAMES[Math.min(rot, 4)] || `SPIN ${rot * 360}°`;
-        const pts = 150 * rot * rot * Math.max(1, this.combo);
+      if (!p.crash && (this.trick || rot > 0)) {
+        const parts = [];
+        let pts = 0;
+        if (this.trick) { parts.push(this.trick.name); pts += this.trick.points; }
+        if (rot > 0) {
+          parts.push(SPIN_NAMES[Math.min(rot, 4)] || `${rot * 360}°`);
+          pts += 150 * rot * rot;
+        }
+        if (p.grabbed > 0.3) { parts.push('グラブ'); pts += 80; }
+        pts = Math.round(pts * Math.max(1, this.combo));
+
         this.addScore(pts);
-        this.popup(name, '#ffd25e', pts);
-        this.boost = Math.min(100, this.boost + 12 * rot * this.boostGain);
-        this.tricks += rot;
-        SB.audio.trick(rot);
+        this.popup(parts.join(' + '), rot > 0 ? '#ffd25e' : '#bfe6ff', pts);
+        this.boost = Math.min(100, this.boost + (10 + 12 * rot) * this.boostGain);
+        this.tricks += 1 + rot;
+        SB.audio.trick(1 + rot);
         this.bumpCombo();
       }
+      this.trick = null;
       if (p.airTime > 0.5) {
-        const air = Math.floor(p.airTime * 100) * (p.grabbed > 0.3 ? 2 : 1);
-        this.addScore(air);
-        if (p.grabbed > 0.3) { this.popup('GRAB!', '#8fd18a', air); this.tricks++; }
+        this.addScore(Math.floor(p.airTime * 100));
         this.boost = Math.min(100, this.boost + p.airTime * 8 * this.boostGain);
       }
       p.spin = 0;
@@ -3649,6 +4020,7 @@ button {
       p.vy = 0;
       p.speed *= 0.35;
       p.spin = 0;
+      this.trick = null;
       this.combo = 0;
       this.comboTimer = 0;
       this.hearts--;
@@ -3837,6 +4209,7 @@ button {
       r.drawWorld(this.world, this.t);
       r.drawTrail(this.trail);
       this.drawParticles(ctx, 'behind');
+      if (!this.demo) this.rival.draw(ctx, r, this.p);
       this.drawRider(ctx);
       this.drawParticles(ctx, 'front');
       this.drawFloaters(ctx);
@@ -3877,6 +4250,8 @@ button {
         crash: p.crash > 0 ? 1 : 0,
         crashRot: p.crashRot,
         look: p.look,
+        pose: this.trick ? this.trick.pose : null,
+        poseMix: p.poseMix,
         t: this.t,
         blink: p.blink,
         squash: p.squash,
@@ -3982,6 +4357,8 @@ button {
     pad: $('pad'), padBoost: document.querySelector('.pad-boost'),
     shop: $('screen-shop'), shopList: $('shop-list'), shopCoins: $('shop-coins'),
     titleCoins: $('title-coins'), resultEarned: $('result-earned'), resultCoins: $('result-coins'),
+    versus: $('versus'), versusName: $('versus-name'), versusGap: $('versus-gap'),
+    verdict: $('result-verdict'),
   };
 
   /* --- UI ------------------------------------------------------------ */
@@ -4022,6 +4399,15 @@ button {
           els.hearts.appendChild(s);
         }
       }
+      // ライバルとの差。前にいるか後ろにいるかで色と文言を変える
+      if (d.rivalName !== undefined) {
+        const ahead = d.rivalGap < 0;           // 相手が後ろ＝こちらがリード
+        const m = Math.round(Math.abs(d.rivalGap));
+        els.versusName.textContent = d.rivalName;
+        els.versusGap.textContent = ahead ? `${m}m リード` : `${m}m うしろ`;
+        els.versus.classList.toggle('ahead', ahead);
+      }
+
       els.boostFill.style.width = `${clamp(d.boost, 0, 100)}%`;
       const ready = d.boost >= 50 || d.boosting;
       els.boostWrap.classList.toggle('ready', ready);
@@ -4038,6 +4424,12 @@ button {
       els.resultBest.textContent = fmt(r.best);
       els.resultEarned.textContent = `+${fmt(r.earned)}`;
       els.resultCoins.textContent = fmt(r.coins);
+
+      const gap = Math.round(r.rivalGap);
+      els.verdict.textContent = gap >= 0
+        ? `🏆 ${r.rivalName}に ${fmt(gap)}m 差で かち！`
+        : `${r.rivalName}に ${fmt(-gap)}m 差で まけ…`;
+      els.verdict.classList.toggle('win', gap >= 0);
       this.setScreen('result');
     },
 

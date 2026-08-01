@@ -18,6 +18,8 @@
     pad: $('pad'), padBoost: document.querySelector('.pad-boost'),
     shop: $('screen-shop'), shopList: $('shop-list'), shopCoins: $('shop-coins'),
     titleCoins: $('title-coins'), resultEarned: $('result-earned'), resultCoins: $('result-coins'),
+    versus: $('versus'), versusName: $('versus-name'), versusGap: $('versus-gap'),
+    verdict: $('result-verdict'),
   };
 
   /* --- UI ------------------------------------------------------------ */
@@ -58,6 +60,15 @@
           els.hearts.appendChild(s);
         }
       }
+      // ライバルとの差。前にいるか後ろにいるかで色と文言を変える
+      if (d.rivalName !== undefined) {
+        const ahead = d.rivalGap < 0;           // 相手が後ろ＝こちらがリード
+        const m = Math.round(Math.abs(d.rivalGap));
+        els.versusName.textContent = d.rivalName;
+        els.versusGap.textContent = ahead ? `${m}m リード` : `${m}m うしろ`;
+        els.versus.classList.toggle('ahead', ahead);
+      }
+
       els.boostFill.style.width = `${clamp(d.boost, 0, 100)}%`;
       const ready = d.boost >= 50 || d.boosting;
       els.boostWrap.classList.toggle('ready', ready);
@@ -74,6 +85,12 @@
       els.resultBest.textContent = fmt(r.best);
       els.resultEarned.textContent = `+${fmt(r.earned)}`;
       els.resultCoins.textContent = fmt(r.coins);
+
+      const gap = Math.round(r.rivalGap);
+      els.verdict.textContent = gap >= 0
+        ? `🏆 ${r.rivalName}に ${fmt(gap)}m 差で かち！`
+        : `${r.rivalName}に ${fmt(-gap)}m 差で まけ…`;
+      els.verdict.classList.toggle('win', gap >= 0);
       this.setScreen('result');
     },
 

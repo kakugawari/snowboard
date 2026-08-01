@@ -38,6 +38,12 @@
 
   <div class="combo" id="combo"></div>
 
+  <!-- ライバルとの差。前にいるか後ろにいるかを常に出す -->
+  <div class="versus" id="versus">
+    <span class="versus-name" id="versus-name">ライバル</span>
+    <b id="versus-gap">0m</b>
+  </div>
+
   <div class="hud-bottom">
     <div class="speedo"><span id="speed">0</span><small>km/h</small></div>
     <div class="boost-wrap">
@@ -105,11 +111,12 @@
       <summary>あそびかた</summary>
       <ul>
         <li><b>左下の板</b> … 触れた側へ曲がる。押したまま指を滑らせると即座に切り替わり、外側を押すほど深く曲がります</li>
-        <li><b>右下の板・上半分</b> … ジャンプ（空中で左下を押すと回転トリック）</li>
+        <li><b>右下の板・上半分</b> … ジャンプ。跳ぶたびに<b>技がランダムで変わります</b>（10種類）。空中で左下を押すと回転が加わって、「ばんざい 360°」のようにつながります</li>
         <li><b>右下の板・下半分</b> … しゃがんで加速／空中ではグラブ</li>
         <li><b>⚡ ボタン</b> … ブースト（ゲージ50%以上で光ったら押せる・障害物を粉砕）</li>
         <li>画面を<b>ドラッグ／フリック</b>する操作も、そのまま使えます</li>
         <li>金の鈴を連続で取るとコンボ倍率が上がります</li>
+        <li>いつも誰かが一緒に滑っています。画面下の帯が今の差。<b>しゃがんで加速</b>したり<b>ブースト</b>を使えば追い抜けます</li>
         <li>PCは <b>← →</b> ／ <b>Space</b> ／ <b>↓</b> ／ <b>Shift</b></li>
       </ul>
       <p class="tip">横向きの画面がおすすめです。</p>
@@ -144,6 +151,7 @@
       <h2 id="result-title">ゴール！</h2>
       <div class="result-score" id="result-score">0</div>
       <div class="earned">🔔 <b id="result-earned">+0</b> <span>手持ち <i id="result-coins">0</i></span></div>
+      <div class="verdict" id="result-verdict"></div>
     </div>
     <div class="col">
       <div class="result-grid">
@@ -160,12 +168,14 @@
 </div>
 
 <script src="src/util.js"></script>
+<script src="src/tricks.js"></script>
 <script src="src/shop.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/input.js"></script>
 <script src="src/world.js"></script>
 <script src="src/render.js"></script>
 <script src="src/plushie.js"></script>
+<script src="src/rival.js"></script>
 <script src="src/game.js"></script>
 <script src="src/main.js"></script>
 </body>
