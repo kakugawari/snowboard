@@ -96,11 +96,16 @@
         <span class="logo-sub">MOFUMOFU</span>
         <h1>もふもふ<br>スノーボード</h1>
       </div>
-      <p class="lead">ぬいぐるみのクマと、雪山をひとすべり。</p>
+      <p class="lead">ぬいぐるみたちと、雪山をひとすべり。</p>
       <div class="best" id="title-best"></div>
     </div>
     <div class="col">
+      <div class="levelbar" id="title-level">
+        <div class="levelbar-row"><b>Lv <span id="title-lv">1</span></b><span id="title-xp">0 / 200</span></div>
+        <div class="xp-track"><div class="xp-fill" id="title-xpfill"></div></div>
+      </div>
       <button class="primary" id="btn-start">スタート</button>
+      <button class="ghost" id="btn-chars">🐾 なかま <span id="title-char">くま</span></button>
       <button class="ghost" id="btn-shop">🔔 そうび <span id="title-coins">0</span></button>
       <div class="toggles">
         <button class="toggle on" id="btn-sound">🔊 サウンド</button>
@@ -116,7 +121,8 @@
         <li><b>⚡ ボタン</b> … ブースト（ゲージ50%以上で光ったら押せる・障害物を粉砕）</li>
         <li>画面を<b>ドラッグ／フリック</b>する操作も、そのまま使えます</li>
         <li>金の鈴を連続で取るとコンボ倍率が上がります</li>
-        <li>いつも誰かが一緒に滑っています。画面下の帯が今の差。<b>しゃがんで加速</b>したり<b>ブースト</b>を使えば追い抜けます</li>
+        <li>いつも誰かが一緒に滑っています。画面下の帯が今の差。<b>しゃがんで加速</b>したり<b>ブースト</b>を使えば追い抜けます。ときどき出てくる<b>★のついた相手</b>はかなり手強いので、ブーストを溜めて挑みましょう</li>
+        <li>走るとレベルが上がり、<b>なかま</b>が増えます。うさぎ・ぺんぎん・ねこ・パンダはそれぞれ得意なことがちがいます</li>
         <li>PCは <b>← →</b> ／ <b>Space</b> ／ <b>↓</b> ／ <b>Shift</b></li>
       </ul>
       <p class="tip">横向きの画面がおすすめです。</p>
@@ -129,9 +135,20 @@
   <div class="card">
     <h2>そうび</h2>
     <div class="wallet">🔔 <b id="shop-coins">0</b></div>
-    <p class="lead">拾った鈴で、クマの装備をととのえよう。</p>
+    <p class="lead">拾った鈴で、なかまの装備をととのえよう。</p>
     <div class="shop-list" id="shop-list"></div>
     <button class="primary" id="btn-shop-close">とじる</button>
+  </div>
+</div>
+
+<!-- なかま。レベルが上がると増える -->
+<div class="screen hidden" id="screen-chars">
+  <div class="card">
+    <h2>なかま</h2>
+    <div class="wallet">Lv <b id="chars-lv">1</b> <span id="chars-next"></span></div>
+    <p class="lead">走るほどレベルが上がって、なかまが増えます。</p>
+    <div class="char-list" id="char-list"></div>
+    <button class="primary" id="btn-chars-close">とじる</button>
   </div>
 </div>
 
@@ -152,6 +169,11 @@
       <div class="result-score" id="result-score">0</div>
       <div class="earned">🔔 <b id="result-earned">+0</b> <span>手持ち <i id="result-coins">0</i></span></div>
       <div class="verdict" id="result-verdict"></div>
+      <div class="levelbar" id="result-level">
+        <div class="levelbar-row"><b>Lv <span id="result-lv">1</span></b><span id="result-xp">+0</span></div>
+        <div class="xp-track"><div class="xp-fill" id="result-xpfill"></div></div>
+        <div class="levelup" id="result-levelup"></div>
+      </div>
     </div>
     <div class="col">
       <div class="result-grid">
@@ -161,7 +183,10 @@
         <div><span>ベスト</span><b id="result-best">0</b></div>
       </div>
       <button class="primary" id="btn-retry">もういちど</button>
-      <button class="ghost" id="btn-shop2">そうびを見る</button>
+      <div class="ghost-row">
+        <button class="ghost" id="btn-chars2">🐾 なかま</button>
+        <button class="ghost" id="btn-shop2">🔔 そうび</button>
+      </div>
       <button class="ghost" id="btn-title">タイトルへ</button>
     </div>
   </div>
@@ -169,6 +194,7 @@
 
 <script src="src/util.js"></script>
 <script src="src/tricks.js"></script>
+<script src="src/chars.js"></script>
 <script src="src/shop.js"></script>
 <script src="src/audio.js"></script>
 <script src="src/input.js"></script>

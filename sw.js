@@ -1,5 +1,5 @@
 /* オフライン用の最小限のキャッシュ。更新時は CACHE の版数を上げる。 */
-const CACHE = 'mofu-snowboard-v11';
+const CACHE = 'mofu-snowboard-v12';
 const ASSETS = [
   './',
   './index.html',
@@ -13,6 +13,7 @@ const ASSETS = [
   './assets/apple-touch-icon.png',
   './src/util.js',
   './src/tricks.js',
+  './src/chars.js',
   './src/shop.js',
   './src/audio.js',
   './src/input.js',

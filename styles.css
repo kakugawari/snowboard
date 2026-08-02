@@ -180,6 +180,7 @@ html, body {
   transition: background .2s;
 }
 .versus.ahead { background: rgba(92, 176, 118, 0.5); }
+.versus.ace .versus-name { color: #ffd25e; opacity: 1; }
 .versus-name { opacity: 0.85; }
 .versus b { font-variant-numeric: tabular-nums; }
 
@@ -374,6 +375,16 @@ html, body {
     transform: translateX(-50%);
   }
   .combo.show { animation: none; }
+
+  /* ライバルとの差も同じ理由で上へ。下に置くと、ちょうどキャラクターの
+     いる位置にかぶって顔が見えなくなる */
+  .versus {
+    position: absolute;
+    top: calc(var(--safe-t) + 76px);
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+  }
 }
 
 @media (hover: hover) {
@@ -503,6 +514,90 @@ button {
 }
 .toggle.on { border-color: var(--accent); color: var(--accent-d); background: rgba(74, 124, 224, 0.12); }
 .toggle:not(.on) { opacity: 0.5; text-decoration: line-through; }
+
+/* --- レベルと経験値 --------------------------------------------------- */
+.levelbar { margin: 12px 0 4px; text-align: left; }
+.levelbar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.levelbar-row b { color: var(--ink); font-size: 15px; }
+
+.xp-track {
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: rgba(70, 97, 138, 0.18);
+  overflow: hidden;
+}
+.xp-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7ed957, #3fb46a);
+  transition: width .45s ease-out;
+}
+
+.levelup {
+  display: none;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(126, 217, 87, 0.18);
+  color: #2f7a45;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.levelup.show { display: block; }
+
+.verdict.ace { color: #b8860b; }
+
+.ghost-row { display: flex; gap: 8px; }
+.ghost-row .ghost { flex: 1; }
+
+/* --- なかま ---------------------------------------------------------- */
+.char-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.char-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px 8px 8px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  text-align: left;
+  font: inherit;
+}
+.char-item.on { border-color: var(--accent); background: rgba(74, 124, 224, 0.14); }
+.char-item.locked { background: rgba(70, 97, 138, 0.08); }
+
+.char-face { width: 66px; height: 66px; }
+#chars-next { display: block; font-size: 12px; font-weight: 800; color: var(--ink-soft); }
+.char-name { font-size: 15px; font-weight: 900; color: var(--ink); }
+.char-item.locked .char-name { color: var(--ink-soft); }
+.char-effect { font-size: 11px; font-weight: 700; color: var(--ink-soft); margin-top: 1px; }
+.char-perk {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--accent-d);
+}
+.char-item.on .char-perk::before { content: "つかっている ・ "; }
 
 /* --- そうび ---------------------------------------------------------- */
 .wallet {
@@ -636,6 +731,13 @@ button {
   .shop-buy { min-width: 62px; padding: 7px 8px; font-size: 12px; }
   .result-grid { grid-template-columns: repeat(4, 1fr); }
   .earned { margin-bottom: 10px; font-size: 16px; }
+  /* なかまも同じく2列に畳む */
+  .char-list { grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 12px; }
+  .char-item { padding: 6px 9px 6px 6px; gap: 7px; }
+  .char-face { width: 50px; height: 50px; }
+  .char-name { font-size: 13px; }
+  .char-effect, .char-perk { font-size: 10px; }
+  .levelbar { margin: 6px 0 2px; }
 }
 
 /* 2段組みのためのまとまり。縦画面では箱を消して、以前と同じ縦並びに戻す */
@@ -684,10 +786,17 @@ button {
   #screen-result .result-grid b { font-size: 16px; }
   #screen-result .primary { padding: 12px; font-size: 16px; }
   #screen-result .ghost { margin: 0; padding: 9px; font-size: 13px; }
+  #screen-result .levelbar { margin: 0; }
+  #screen-result .levelup { margin-top: 5px; padding: 5px 8px; font-size: 11px; }
 }
 
-/* 高さに余裕がない画面では、そうび一覧を詰めて「とじる」まで収める */
+/* 高さに余裕がない画面では、一覧を詰めて「とじる」まで収める */
 @media (max-height: 660px) {
+  #screen-chars .lead { display: none; }
+  #screen-chars .char-list { gap: 6px; margin-bottom: 10px; }
+  #screen-chars .char-item { padding: 5px 9px 5px 5px; }
+  #screen-chars .char-face { width: 46px; height: 46px; }
+  #screen-chars .wallet { margin-bottom: 0; }
   #screen-shop .lead { display: none; }
   #screen-shop .shop-list { gap: 6px; margin-bottom: 10px; }
   #screen-shop .shop-item { padding: 7px 10px; }

@@ -10,13 +10,32 @@
   const C = SB.C;
 
   const NAMES = ['ももちゃん', 'ゆきちゃん', 'こむぎ', 'あられ', 'きなこ'];
+  // 5回に1回くらい出てくる、とても強い相手。名前も見た目も別格にしてある
+  const ACES = ['ゆきおう', 'かみなり', 'ふぶき'];
+  const ACE_CHANCE = 0.22;
 
   class Rival {
     constructor() { this.reset(); }
 
     reset() {
-      this.name = NAMES[Math.floor(Math.random() * NAMES.length)];
-      this.z = 9;               // 少し前からスタートして、追う気持ちを作る
+      this.ace = Math.random() < ACE_CHANCE;
+      this.name = this.ace
+        ? ACES[Math.floor(Math.random() * ACES.length)]
+        : NAMES[Math.floor(Math.random() * NAMES.length)];
+      /* 見た目。ふつうの相手は毎回ちがうなかまの姿で滑ってくる（自分と
+         同じ姿は選ばない）。強い相手は専用の黒と金。 */
+      if (this.ace) {
+        this.skin = SB.plushieSkins.ace;
+      } else if (SB.chars) {
+        const mine = SB.chars.selected;
+        const pool = SB.chars.list.filter((c) => c.id !== mine);
+        this.skin = pool.length
+          ? pool[Math.floor(Math.random() * pool.length)].skin
+          : SB.plushieSkins.rival;
+      } else {
+        this.skin = SB.plushieSkins.rival;
+      }
+      this.z = this.ace ? 14 : 9;   // 少し前からスタートして、追う気持ちを作る
       this.x = 2.4;
       this.vx = 0;
       this.speed = 14;
@@ -74,12 +93,16 @@
          したりすれば前に出られる。逆に転べば置いていかれる。
          そのうえで、離れすぎたぶんだけゴムひものように寄せる。 */
       const gap = this.z - player.z;
-      const base = 13.0 + difficulty * 12.6;
+      /* 強い相手は素の速さが上、手加減の幅は小さく、追い上げは強い。
+         しゃがみ続けるだけでは足りず、ブーストを溜めて使う必要が出る。 */
+      const base = this.ace ? 16.2 + difficulty * 13.6 : 13.0 + difficulty * 12.6;
       let target = base;
-      if (gap > 30) target -= Math.min(8, (gap - 30) * 0.22);   // 前に出すぎたら緩める
-      if (gap < -30) target += Math.min(6, (-gap - 30) * 0.16); // 離されたら少し本気
+      const ease = this.ace ? 4 : 8;
+      const chase = this.ace ? 9 : 6;
+      if (gap > 30) target -= Math.min(ease, (gap - 30) * 0.22);   // 前に出すぎたら緩める
+      if (gap < -30) target += Math.min(chase, (-gap - 30) * 0.16); // 離されたら本気
       // プレイヤーが転んでいる間は少しだけ待ってあげる（置き去りにしない）
-      if (player.crash > 0) target = Math.min(target, player.speed + 8);
+      if (player.crash > 0) target = Math.min(target, player.speed + (this.ace ? 12 : 8));
       this.speed = damp(this.speed, Math.max(6, target), 1.4, dt);
       this.z += this.speed * dt;
 
@@ -135,7 +158,7 @@
       ctx.save();
       ctx.globalAlpha = fade;
       SB.drawPlushie(ctx, rider.x, rider.y, rider.s, {
-        skin: SB.plushieSkins.rival,
+        skin: this.skin,
         lean: this.lean,
         spin: 0,
         air: this.air,
@@ -152,15 +175,16 @@
 
       // 名札。誰と競っているのか分かるように、頭の上に小さく出す
       const size = clamp(rider.s * 0.2, 9, 22);
+      const label = this.ace ? `★ ${this.name}` : this.name;
       ctx.save();
       ctx.font = `800 ${size}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.lineWidth = size * 0.22;
       ctx.strokeStyle = 'rgba(24,48,84,0.45)';
-      ctx.strokeText(this.name, rider.x, rider.y - rider.s * 1.75);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(this.name, rider.x, rider.y - rider.s * 1.75);
+      ctx.strokeText(label, rider.x, rider.y - rider.s * 1.75);
+      ctx.fillStyle = this.ace ? '#ffd25e' : '#ffffff';
+      ctx.fillText(label, rider.x, rider.y - rider.s * 1.75);
       ctx.restore();
 
       ctx.restore();

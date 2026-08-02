@@ -20,6 +20,12 @@
     titleCoins: $('title-coins'), resultEarned: $('result-earned'), resultCoins: $('result-coins'),
     versus: $('versus'), versusName: $('versus-name'), versusGap: $('versus-gap'),
     verdict: $('result-verdict'),
+    chars: $('screen-chars'), charList: $('char-list'),
+    charsLv: $('chars-lv'), charsNext: $('chars-next'),
+    titleLv: $('title-lv'), titleXp: $('title-xp'), titleXpFill: $('title-xpfill'),
+    titleChar: $('title-char'),
+    resultLv: $('result-lv'), resultXp: $('result-xp'),
+    resultXpFill: $('result-xpfill'), resultLevelup: $('result-levelup'),
   };
 
   /* --- UI ------------------------------------------------------------ */
@@ -30,7 +36,7 @@
     _lastHearts: -1,
 
     setScreen(name) {
-      for (const key of ['title', 'pause', 'result', 'shop']) {
+      for (const key of ['title', 'pause', 'result', 'shop', 'chars']) {
         els[key].classList.toggle('hidden', key !== name);
       }
     },
@@ -64,7 +70,8 @@
       if (d.rivalName !== undefined) {
         const ahead = d.rivalGap < 0;           // 相手が後ろ＝こちらがリード
         const m = Math.round(Math.abs(d.rivalGap));
-        els.versusName.textContent = d.rivalName;
+        els.versusName.textContent = d.rivalAce ? `★ ${d.rivalName}` : d.rivalName;
+        els.versus.classList.toggle('ace', !!d.rivalAce);
         els.versusGap.textContent = ahead ? `${m}m リード` : `${m}m うしろ`;
         els.versus.classList.toggle('ahead', ahead);
       }
@@ -87,10 +94,24 @@
       els.resultCoins.textContent = fmt(r.coins);
 
       const gap = Math.round(r.rivalGap);
+      const who = r.rivalAce ? `★${r.rivalName}` : r.rivalName;
       els.verdict.textContent = gap >= 0
-        ? `🏆 ${r.rivalName}に ${fmt(gap)}m 差で かち！`
-        : `${r.rivalName}に ${fmt(-gap)}m 差で まけ…`;
+        ? `🏆 ${who}に ${fmt(gap)}m 差で かち！${r.bonus ? ` 🔔+${r.bonus}` : ''}`
+        : `${who}に ${fmt(-gap)}m 差で まけ…`;
       els.verdict.classList.toggle('win', gap >= 0);
+      els.verdict.classList.toggle('ace', !!r.rivalAce);
+
+      // 経験値。上がったぶんは文章で出す（棒だけだと気づかれない）
+      const ch = SB.chars;
+      els.resultLv.textContent = ch.level;
+      els.resultXp.textContent = `+${fmt(r.xp.gained)}`;
+      els.resultXpFill.style.width = `${clamp(ch.xp / ch.need(ch.level) * 100, 0, 100)}%`;
+      const lines = [];
+      if (r.xp.levels > 0) lines.push(`レベルアップ！ Lv ${ch.level}`);
+      for (const c of r.xp.joined) lines.push(`🎉 ${c.name}が なかまに なった！`);
+      els.resultLevelup.textContent = lines.join('\n');
+      els.resultLevelup.classList.toggle('show', lines.length > 0);
+
       this.setScreen('result');
     },
 
@@ -151,6 +172,71 @@
       }
     },
 
+    /* なかま一覧。まだ増えていない子も、どのレベルで来るかを見せておく */
+    renderChars() {
+      const ch = SB.chars;
+      els.charsLv.textContent = ch.level;
+      const next = ch.list.find((c) => c.unlock > ch.level);
+      els.charsNext.textContent = next ? `Lv ${next.unlock} で ${next.name}` : 'ぜんいん そろった！';
+      els.charList.innerHTML = '';
+
+      for (const def of ch.list) {
+        const open = ch.unlocked(def);
+        const row = document.createElement('button');
+        row.className = 'char-item'
+          + (open ? '' : ' locked')
+          + (def.id === ch.selected ? ' on' : '');
+        row.disabled = !open;
+
+        // 見た目はゲーム中とまったく同じ描画関数で出す
+        const cv = document.createElement('canvas');
+        cv.className = 'char-face';
+        cv.width = 132; cv.height = 132;
+        const c = cv.getContext('2d');
+        c.save();
+        if (!open) c.globalAlpha = 0.25;
+        // 全身が枠いっぱいに入る位置。マフラーが左へ伸びるぶん右に寄せる
+        SB.drawPlushie(c, 74, 112, 64, {
+          skin: def.skin, lean: 0, spin: 0, air: false, look: 1,
+          tuck: 0, crash: 0, t: 0.4, blink: 1, squash: 1,
+          speedRatio: 0, hideShadow: true,
+        });
+        c.restore();
+
+        const mid = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'char-name';
+        name.textContent = def.name;   // 名前は先に見せる（楽しみになるので）
+        const eff = document.createElement('div');
+        eff.className = 'char-effect';
+        eff.textContent = open ? def.lead : `Lv ${def.unlock} で なかまに なる`;
+        const perk = document.createElement('div');
+        perk.className = 'char-perk';
+        perk.textContent = open ? def.perkText : '';
+        mid.append(name, eff, perk);
+
+        row.append(cv, mid);
+        if (open) {
+          row.addEventListener('click', () => {
+            if (!ch.select(def.id)) return;
+            SB.audio.resume();
+            SB.audio.ui();
+            this.renderChars();
+            this.refreshTitleLevel();
+          });
+        }
+        els.charList.appendChild(row);
+      }
+    },
+
+    refreshTitleLevel() {
+      const ch = SB.chars;
+      els.titleLv.textContent = ch.level;
+      els.titleXp.textContent = `${fmt(ch.xp)} / ${fmt(ch.need(ch.level))}`;
+      els.titleXpFill.style.width = `${clamp(ch.xp / ch.need(ch.level) * 100, 0, 100)}%`;
+      els.titleChar.textContent = ch.current().name;
+    },
+
     refreshTitleBest(game) {
       els.titleBest.textContent = game.best > 0
         ? `ベスト ${fmt(game.best)} 点 / ${fmt(game.bestDist)} m`
@@ -167,6 +253,7 @@
 
   SB.audio.setEnabled(ui.sound);
   ui.refreshTitleBest(game);
+  ui.refreshTitleLevel();
   ui.renderShop();
   ui.setScreen('title');
   ui.setHud(false);
@@ -187,6 +274,9 @@
   tap($('btn-pause'), () => game.togglePause());
   tap($('btn-resume'), () => game.togglePause());
   tap($('btn-quit'), () => backToTitle());
+  tap($('btn-chars'), () => { ui.renderChars(); ui.setScreen('chars'); });
+  tap($('btn-chars2'), () => { ui.renderChars(); ui.setScreen('chars'); });
+  tap($('btn-chars-close'), () => backToTitle());
   tap($('btn-shop'), () => { ui.renderShop(); ui.setScreen('shop'); });
   tap($('btn-shop2'), () => { ui.renderShop(); ui.setScreen('shop'); });
   tap($('btn-shop-close'), () => backToTitle());
@@ -197,6 +287,7 @@
     game.reset(true);          // 買った装備を次の走りへ反映させる
     game.state = 'title';
     ui.refreshTitleBest(game);
+    ui.refreshTitleLevel();
     ui.renderShop();
     ui.setScreen('title');
     ui.setHud(false);

@@ -48,7 +48,7 @@
       this.trick = null;
       if (this.rival) this.rival.reset();
       this.rivalLead = false;    // 直前フレームで相手より前にいたか
-      this.magnetRange = 3.2 * (1 + SB.shop.lv('magnet') * 0.35);
+      this.magnetRange = 3.2 * (1 + SB.shop.lv('magnet') * 0.35 + SB.chars.perk('magnet'));
       this.boostGain = 1 + SB.shop.lv('boost') * 0.30;
       this.demo = !!demo;
       this.p = {
@@ -64,7 +64,7 @@
       this.comboTimer = 0;
       this.bells = 0;
       this.tricks = 0;
-      this.maxHearts = BASE_HEARTS + SB.shop.lv('heart');
+      this.maxHearts = BASE_HEARTS + SB.shop.lv('heart') + SB.chars.perk('heart');
       this.hearts = this.maxHearts;
       this.boost = 0;          // 0..100 のゲージ
       this.boostTime = 0;
@@ -86,16 +86,26 @@
 
     gameOver() {
       this.state = 'over';
-      const earned = Math.floor(this.bells);
+      const rivalGap = this.distance - this.rival.z;
+      // 強い相手に勝てたときは、それだけで鈴がひとつかみ増える
+      const bonus = rivalGap >= 0 ? (this.rival.ace ? 60 : 15) : 0;
+      const earned = Math.floor(this.bells) + bonus;
       SB.shop.addCoins(earned);
+
+      /* 経験値。距離をそのまま、拾った鈴と決めた技を上乗せする。
+         「走りきった」だけでも必ず増えるようにしてある。 */
+      const xp = Math.floor(this.distance + this.bells * 8 + this.tricks * 12 + bonus * 2);
+      const grew = SB.chars.addXp(xp);
+
       const isBest = this.score > this.best;
       if (isBest) { this.best = this.score; store.set('sb_best', Math.floor(this.score)); }
       if (this.distance > this.bestDist) { this.bestDist = this.distance; store.set('sb_bestdist', Math.floor(this.distance)); }
       this.ui.showResult({
         score: this.score, distance: this.distance, bells: this.bells,
         tricks: this.tricks, best: this.best, isBest,
-        earned, coins: SB.shop.coins,
-        rivalName: this.rival.name, rivalGap: this.distance - this.rival.z,
+        earned, bonus, coins: SB.shop.coins,
+        rivalName: this.rival.name, rivalGap, rivalAce: this.rival.ace,
+        xp: grew,
       });
       this.ui.setHud(false);
     }
@@ -126,7 +136,17 @@
 
       if (this.state === 'ready') {
         this.readyTimer -= dt;
-        if (this.readyTimer <= 0) { this.state = 'run'; this.startedAt = this.t; }
+        if (this.readyTimer <= 0) {
+          this.state = 'run';
+          this.startedAt = this.t;
+          // 誰と走るのかを最初に伝える。強い相手のときは特に
+          if (!this.demo) {
+            this.popup(
+              this.rival.ace ? `★ ${this.rival.name} だ！` : `${this.rival.name}と きょうそう`,
+              this.rival.ace ? '#ffd25e' : '#ffffff'
+            );
+          }
+        }
       }
 
       /* 入力 */
@@ -145,7 +165,7 @@
       /* 速度 */
       const diffRamp = clamp(p.z / 2200, 0, 1);
       const offPiste = Math.abs(p.x) > C.PISTE_HALF;
-      let target = 13 + diffRamp * 13 + SB.shop.lv('speed') * 1.6;
+      let target = 13 + diffRamp * 13 + SB.shop.lv('speed') * 1.6 + SB.chars.perk('speed');
       if (this.demo) target = 11;
       if (tuck) target += 6;
       if (offPiste) target -= 7.5;
@@ -297,7 +317,7 @@
         this.ui.updateHud({
           score: this.score, distance: this.distance, speed: p.speed * 3.6,
           combo: this.combo, hearts: this.hearts, maxHearts: this.maxHearts, boost: this.boost,
-          rivalName: this.rival.name, rivalGap: this.rival.z - p.z,
+          rivalName: this.rival.name, rivalGap: this.rival.z - p.z, rivalAce: this.rival.ace,
           boosting: this.boostTime > 0,
         });
       }
@@ -306,7 +326,7 @@
     jump() {
       const p = this.p;
       p.air = true;
-      p.vy = (7.2 + p.speed * 0.07) * (1 + SB.shop.lv('jump') * 0.11);
+      p.vy = (7.2 + p.speed * 0.07) * (1 + SB.shop.lv('jump') * 0.11 + SB.chars.perk('jump'));
       p.airTime = 0;
       p.grabbed = 0;
       p.squash = 1.12;
@@ -383,7 +403,7 @@
 
     bumpCombo() {
       this.combo++;
-      this.comboTimer = 3.2;
+      this.comboTimer = 3.2 * (1 + SB.chars.perk('combo'));
     }
 
     addScore(n) { this.score += n; }
@@ -458,7 +478,7 @@
           if (Math.abs(dz) < Math.max(1.6, reach) && Math.abs(o.x - p.x) < 2.6 && !p.air) {
             o.used = true;
             p.air = true;
-            p.vy = (9.5 + p.speed * 0.1) * (1 + SB.shop.lv('jump') * 0.11);
+            p.vy = (9.5 + p.speed * 0.1) * (1 + SB.shop.lv('jump') * 0.11 + SB.chars.perk('jump'));
             p.airTime = 0;
             p.grabbed = 0;
             p.squash = 1.2;
@@ -732,6 +752,7 @@
         crash: p.crash > 0 ? 1 : 0,
         crashRot: p.crashRot,
         look: p.look,
+        skin: SB.chars.current().skin,
         pose: this.trick ? this.trick.pose : null,
         poseMix: p.poseMix,
         t: this.t,

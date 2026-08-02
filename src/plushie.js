@@ -6,20 +6,32 @@
   const SB = global.SB || (global.SB = {});
   const { clamp, lerp, roundRect, ellipse, rgba, TAU } = SB.util;
 
-  /* 見た目一式。ライバルには別の組み合わせを渡す */
+  /* 見た目一式。なかまの色と形は chars.js が持っていて、ここへ渡ってくる。
+     ここに残しているのは、渡されなかったときの既定と、なかまには居ない
+     特別な相手のぶん。 */
   const SKINS = {
     bear: {
+      ears: 'round', face: 'muzzle',
       fur: '#e6bd91', furD: '#cfa176', belly: '#f6e7d2', muzzle: '#f8ecd9',
       earIn: '#f0aeae', hat: '#6fcbbd', hatD: '#4fae9f',
       scarf: '#e2483f', scarfD: '#b8352d', mitten: '#e2483f', mittenD: '#c96f68',
       board: '#4a7ce0', boardD: '#2f57ac', boot: '#3b4150', nose: '#5b4034',
     },
-    // ライバル。ひと目で見分けられるよう色相をずらす
+    // ふつうのライバル。なかまの誰とも重ならない色にしてある
     rival: {
+      ears: 'round', face: 'muzzle',
       fur: '#d8d3e8', furD: '#bdb6d4', belly: '#f2eff8', muzzle: '#faf7ff',
       earIn: '#e8aecb', hat: '#f2a2bf', hatD: '#d97fa2',
       scarf: '#5cc2b4', scarfD: '#3f9d90', mitten: '#5cc2b4', mittenD: '#4aa79a',
       board: '#f2b23c', boardD: '#c98a1c', boot: '#4a4358', nose: '#5a4a63',
+    },
+    // とても強い相手。黒と金で、遠くからでも「あ、あいつだ」と分かる
+    ace: {
+      ears: 'pointy', face: 'muzzle', whiskers: true,
+      fur: '#5b5470', furD: '#443f56', belly: '#d9d2ea', muzzle: '#e7e1f4',
+      earIn: '#b9a0e0', hat: '#1f2430', hatD: '#12161f',
+      scarf: '#ffc93c', scarfD: '#e0a91c', mitten: '#ffc93c', mittenD: '#e0a91c',
+      board: '#151a26', boardD: '#05070c', boot: '#1a1f2b', nose: '#2b2536',
     },
   };
 
@@ -209,13 +221,44 @@
     ctx.rotate(headTilt);
     ctx.scale(headFix, 1);                  // ここから先だけ頭の向きになる
 
-    // 耳
+    // 耳。種類ごとに形を変える（ここがいちばん見分けのつくところ）
+    const earOuter = S.earOuter || S.furD;
     for (const side of [-1, 1]) {
-      ctx.fillStyle = S.furD;
-      ellipse(ctx, side * 0.235, -0.20, 0.105, 0.105); ctx.fill();
-      if (headFacing > 0) {
-        ctx.fillStyle = S.earIn;
-        ellipse(ctx, side * 0.245, -0.20, 0.055, 0.055); ctx.fill();
+      if (S.ears === 'none') break;
+      if (S.ears === 'long') {
+        // うさぎ。外へ少し倒した細長い耳
+        ctx.save();
+        ctx.translate(side * 0.15, -0.20);
+        ctx.rotate(side * 0.2);
+        ctx.fillStyle = earOuter;
+        ellipse(ctx, 0, -0.22, 0.085, 0.26); ctx.fill();
+        if (headFacing > 0) {
+          ctx.fillStyle = S.earIn;
+          ellipse(ctx, 0, -0.22, 0.046, 0.20); ctx.fill();
+        }
+        ctx.restore();
+      } else if (S.ears === 'pointy') {
+        // ねこ。三角の耳
+        const bx = side * 0.13, tx = side * 0.33;
+        ctx.fillStyle = earOuter;
+        ctx.beginPath();
+        ctx.moveTo(bx, -0.17); ctx.lineTo(tx, -0.16); ctx.lineTo(side * 0.27, -0.44);
+        ctx.closePath(); ctx.fill();
+        if (headFacing > 0) {
+          ctx.fillStyle = S.earIn;
+          ctx.beginPath();
+          ctx.moveTo(bx + side * 0.045, -0.19); ctx.lineTo(tx - side * 0.03, -0.185);
+          ctx.lineTo(side * 0.26, -0.36);
+          ctx.closePath(); ctx.fill();
+        }
+      } else {
+        // くま・パンダ。丸い耳
+        ctx.fillStyle = earOuter;
+        ellipse(ctx, side * 0.235, -0.20, 0.105, 0.105); ctx.fill();
+        if (headFacing > 0) {
+          ctx.fillStyle = S.earIn;
+          ellipse(ctx, side * 0.245, -0.20, 0.055, 0.055); ctx.fill();
+        }
       }
     }
     // 顔の輪郭
@@ -223,47 +266,98 @@
     ellipse(ctx, 0, 0, 0.30, 0.285); ctx.fill();
 
     if (headFacing > 0) {
-      // マズル
-      ctx.fillStyle = S.muzzle;
-      ellipse(ctx, 0, 0.10, 0.16, 0.115); ctx.fill();
-      // 鼻と口
-      ctx.fillStyle = S.nose;
-      ctx.beginPath();
-      ctx.moveTo(-0.045, 0.045); ctx.lineTo(0.045, 0.045); ctx.lineTo(0, 0.10);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = S.nose;
-      ctx.lineWidth = 0.016;
-      ctx.beginPath();
-      ctx.moveTo(0, 0.10); ctx.lineTo(0, 0.135);
-      ctx.moveTo(0, 0.135); ctx.quadraticCurveTo(-0.05, 0.175, -0.085, 0.13);
-      ctx.moveTo(0, 0.135); ctx.quadraticCurveTo(0.05, 0.175, 0.085, 0.13);
-      ctx.stroke();
+      const beak = S.face === 'beak';
+      if (beak) {
+        // とり。顔の下半分が白く、真ん中にくちばし
+        ctx.fillStyle = S.muzzle;
+        ellipse(ctx, 0, 0.045, 0.215, 0.215); ctx.fill();
+        ctx.fillStyle = S.nose;
+        ctx.beginPath();
+        ctx.moveTo(-0.085, 0.055); ctx.lineTo(0.085, 0.055); ctx.lineTo(0, 0.175);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 0.014;
+        ctx.beginPath();
+        ctx.moveTo(-0.06, 0.088); ctx.lineTo(0.06, 0.088);
+        ctx.stroke();
+      } else {
+        // マズル
+        ctx.fillStyle = S.muzzle;
+        ellipse(ctx, 0, 0.10, 0.16, 0.115); ctx.fill();
+        // 鼻と口
+        ctx.fillStyle = S.nose;
+        ctx.beginPath();
+        ctx.moveTo(-0.045, 0.045); ctx.lineTo(0.045, 0.045); ctx.lineTo(0, 0.10);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = S.nose;
+        ctx.lineWidth = 0.016;
+        ctx.beginPath();
+        ctx.moveTo(0, 0.10); ctx.lineTo(0, 0.135);
+        ctx.moveTo(0, 0.135); ctx.quadraticCurveTo(-0.05, 0.175, -0.085, 0.13);
+        ctx.moveTo(0, 0.135); ctx.quadraticCurveTo(0.05, 0.175, 0.085, 0.13);
+        ctx.stroke();
+        if (S.whiskers) {
+          ctx.strokeStyle = rgba(S.nose, 0.5);
+          ctx.lineWidth = 0.012;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          for (const side of [-1, 1]) {
+            for (const dy of [-0.02, 0.012, 0.045]) {
+              ctx.moveTo(side * 0.15, 0.09 + dy * 0.4);
+              ctx.lineTo(side * 0.34, 0.06 + dy);
+            }
+          }
+          ctx.stroke();
+        }
+      }
+      // 目のまわりの模様（パンダ）。目より先に敷く
+      if (S.eyePatch) {
+        ctx.fillStyle = S.eyePatch;
+        for (const side of [-1, 1]) {
+          ctx.save();
+          ctx.translate(side * 0.135, -0.025);
+          ctx.rotate(side * 0.4);
+          ellipse(ctx, 0, 0, 0.085, 0.11); ctx.fill();
+          ctx.restore();
+        }
+      }
       // 目（まばたき／転倒時は ×）
       const open = crash ? 0 : (st.blink === undefined ? 1 : st.blink);
+      const eyeInk = S.eyePatch ? '#2c2c34' : S.nose;
       for (const side of [-1, 1]) {
         const ex = side * 0.125, ey = -0.02;
         if (crash) {
-          ctx.strokeStyle = S.nose; ctx.lineWidth = 0.024;
+          ctx.strokeStyle = eyeInk; ctx.lineWidth = 0.024;
           ctx.beginPath();
           ctx.moveTo(ex - 0.04, ey - 0.04); ctx.lineTo(ex + 0.04, ey + 0.04);
           ctx.moveTo(ex + 0.04, ey - 0.04); ctx.lineTo(ex - 0.04, ey + 0.04);
           ctx.stroke();
         } else if (open > 0.15) {
-          ctx.fillStyle = S.nose;
-          ellipse(ctx, ex, ey, 0.045, 0.052 * open); ctx.fill();
-          ctx.fillStyle = 'rgba(255,255,255,0.95)';
-          ellipse(ctx, ex - 0.016, ey - 0.020 * open, 0.017, 0.017 * open); ctx.fill();
+          // 黒い模様の上では、白目を敷かないと目が消える
+          if (S.eyePatch) {
+            ctx.fillStyle = '#ffffff';
+            ellipse(ctx, ex, ey, 0.048, 0.055 * open); ctx.fill();
+            ctx.fillStyle = eyeInk;
+            ellipse(ctx, ex, ey, 0.028, 0.034 * open); ctx.fill();
+          } else {
+            ctx.fillStyle = eyeInk;
+            ellipse(ctx, ex, ey, 0.045, 0.052 * open); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            ellipse(ctx, ex - 0.016, ey - 0.020 * open, 0.017, 0.017 * open); ctx.fill();
+          }
         } else {
-          ctx.strokeStyle = S.nose; ctx.lineWidth = 0.022; ctx.lineCap = 'round';
+          ctx.strokeStyle = eyeInk; ctx.lineWidth = 0.022; ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(ex - 0.045, ey); ctx.quadraticCurveTo(ex, ey + 0.03, ex + 0.045, ey);
           ctx.stroke();
         }
       }
-      // ほっぺ
-      ctx.fillStyle = 'rgba(240,150,150,0.55)';
-      ellipse(ctx, -0.20, 0.07, 0.055, 0.038); ctx.fill();
-      ellipse(ctx, 0.20, 0.07, 0.055, 0.038); ctx.fill();
+      // ほっぺ。黒い模様やくちばしの子には要らない
+      if (!S.eyePatch && !beak) {
+        ctx.fillStyle = 'rgba(240,150,150,0.55)';
+        ellipse(ctx, -0.20, 0.07, 0.055, 0.038); ctx.fill();
+        ellipse(ctx, 0.20, 0.07, 0.055, 0.038); ctx.fill();
+      }
     } else {
       // 後頭部の縫い目
       ctx.strokeStyle = rgba(S.furD, 0.85);

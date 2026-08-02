@@ -199,6 +199,7 @@ html, body {
   transition: background .2s;
 }
 .versus.ahead { background: rgba(92, 176, 118, 0.5); }
+.versus.ace .versus-name { color: #ffd25e; opacity: 1; }
 .versus-name { opacity: 0.85; }
 .versus b { font-variant-numeric: tabular-nums; }
 
@@ -393,6 +394,16 @@ html, body {
     transform: translateX(-50%);
   }
   .combo.show { animation: none; }
+
+  /* ライバルとの差も同じ理由で上へ。下に置くと、ちょうどキャラクターの
+     いる位置にかぶって顔が見えなくなる */
+  .versus {
+    position: absolute;
+    top: calc(var(--safe-t) + 76px);
+    left: 50%;
+    transform: translateX(-50%);
+    margin: 0;
+  }
 }
 
 @media (hover: hover) {
@@ -522,6 +533,90 @@ button {
 }
 .toggle.on { border-color: var(--accent); color: var(--accent-d); background: rgba(74, 124, 224, 0.12); }
 .toggle:not(.on) { opacity: 0.5; text-decoration: line-through; }
+
+/* --- レベルと経験値 --------------------------------------------------- */
+.levelbar { margin: 12px 0 4px; text-align: left; }
+.levelbar-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+.levelbar-row b { color: var(--ink); font-size: 15px; }
+
+.xp-track {
+  height: 8px;
+  margin-top: 5px;
+  border-radius: 999px;
+  background: rgba(70, 97, 138, 0.18);
+  overflow: hidden;
+}
+.xp-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #7ed957, #3fb46a);
+  transition: width .45s ease-out;
+}
+
+.levelup {
+  display: none;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(126, 217, 87, 0.18);
+  color: #2f7a45;
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.levelup.show { display: block; }
+
+.verdict.ace { color: #b8860b; }
+
+.ghost-row { display: flex; gap: 8px; }
+.ghost-row .ghost { flex: 1; }
+
+/* --- なかま ---------------------------------------------------------- */
+.char-list {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.char-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 12px 8px 8px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.62);
+  text-align: left;
+  font: inherit;
+}
+.char-item.on { border-color: var(--accent); background: rgba(74, 124, 224, 0.14); }
+.char-item.locked { background: rgba(70, 97, 138, 0.08); }
+
+.char-face { width: 66px; height: 66px; }
+#chars-next { display: block; font-size: 12px; font-weight: 800; color: var(--ink-soft); }
+.char-name { font-size: 15px; font-weight: 900; color: var(--ink); }
+.char-item.locked .char-name { color: var(--ink-soft); }
+.char-effect { font-size: 11px; font-weight: 700; color: var(--ink-soft); margin-top: 1px; }
+.char-perk {
+  margin-top: 3px;
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--accent-d);
+}
+.char-item.on .char-perk::before { content: "つかっている ・ "; }
 
 /* --- そうび ---------------------------------------------------------- */
 .wallet {
@@ -655,6 +750,13 @@ button {
   .shop-buy { min-width: 62px; padding: 7px 8px; font-size: 12px; }
   .result-grid { grid-template-columns: repeat(4, 1fr); }
   .earned { margin-bottom: 10px; font-size: 16px; }
+  /* なかまも同じく2列に畳む */
+  .char-list { grid-template-columns: 1fr 1fr; gap: 7px; margin-bottom: 12px; }
+  .char-item { padding: 6px 9px 6px 6px; gap: 7px; }
+  .char-face { width: 50px; height: 50px; }
+  .char-name { font-size: 13px; }
+  .char-effect, .char-perk { font-size: 10px; }
+  .levelbar { margin: 6px 0 2px; }
 }
 
 /* 2段組みのためのまとまり。縦画面では箱を消して、以前と同じ縦並びに戻す */
@@ -703,10 +805,17 @@ button {
   #screen-result .result-grid b { font-size: 16px; }
   #screen-result .primary { padding: 12px; font-size: 16px; }
   #screen-result .ghost { margin: 0; padding: 9px; font-size: 13px; }
+  #screen-result .levelbar { margin: 0; }
+  #screen-result .levelup { margin-top: 5px; padding: 5px 8px; font-size: 11px; }
 }
 
-/* 高さに余裕がない画面では、そうび一覧を詰めて「とじる」まで収める */
+/* 高さに余裕がない画面では、一覧を詰めて「とじる」まで収める */
 @media (max-height: 660px) {
+  #screen-chars .lead { display: none; }
+  #screen-chars .char-list { gap: 6px; margin-bottom: 10px; }
+  #screen-chars .char-item { padding: 5px 9px 5px 5px; }
+  #screen-chars .char-face { width: 46px; height: 46px; }
+  #screen-chars .wallet { margin-bottom: 0; }
   #screen-shop .lead { display: none; }
   #screen-shop .shop-list { gap: 6px; margin-bottom: 10px; }
   #screen-shop .shop-item { padding: 7px 10px; }
@@ -805,11 +914,16 @@ button {
         <span class="logo-sub">MOFUMOFU</span>
         <h1>もふもふ<br>スノーボード</h1>
       </div>
-      <p class="lead">ぬいぐるみのクマと、雪山をひとすべり。</p>
+      <p class="lead">ぬいぐるみたちと、雪山をひとすべり。</p>
       <div class="best" id="title-best"></div>
     </div>
     <div class="col">
+      <div class="levelbar" id="title-level">
+        <div class="levelbar-row"><b>Lv <span id="title-lv">1</span></b><span id="title-xp">0 / 200</span></div>
+        <div class="xp-track"><div class="xp-fill" id="title-xpfill"></div></div>
+      </div>
       <button class="primary" id="btn-start">スタート</button>
+      <button class="ghost" id="btn-chars">🐾 なかま <span id="title-char">くま</span></button>
       <button class="ghost" id="btn-shop">🔔 そうび <span id="title-coins">0</span></button>
       <div class="toggles">
         <button class="toggle on" id="btn-sound">🔊 サウンド</button>
@@ -825,7 +939,8 @@ button {
         <li><b>⚡ ボタン</b> … ブースト（ゲージ50%以上で光ったら押せる・障害物を粉砕）</li>
         <li>画面を<b>ドラッグ／フリック</b>する操作も、そのまま使えます</li>
         <li>金の鈴を連続で取るとコンボ倍率が上がります</li>
-        <li>いつも誰かが一緒に滑っています。画面下の帯が今の差。<b>しゃがんで加速</b>したり<b>ブースト</b>を使えば追い抜けます</li>
+        <li>いつも誰かが一緒に滑っています。画面下の帯が今の差。<b>しゃがんで加速</b>したり<b>ブースト</b>を使えば追い抜けます。ときどき出てくる<b>★のついた相手</b>はかなり手強いので、ブーストを溜めて挑みましょう</li>
+        <li>走るとレベルが上がり、<b>なかま</b>が増えます。うさぎ・ぺんぎん・ねこ・パンダはそれぞれ得意なことがちがいます</li>
         <li>PCは <b>← →</b> ／ <b>Space</b> ／ <b>↓</b> ／ <b>Shift</b></li>
       </ul>
       <p class="tip">横向きの画面がおすすめです。</p>
@@ -838,9 +953,20 @@ button {
   <div class="card">
     <h2>そうび</h2>
     <div class="wallet">🔔 <b id="shop-coins">0</b></div>
-    <p class="lead">拾った鈴で、クマの装備をととのえよう。</p>
+    <p class="lead">拾った鈴で、なかまの装備をととのえよう。</p>
     <div class="shop-list" id="shop-list"></div>
     <button class="primary" id="btn-shop-close">とじる</button>
+  </div>
+</div>
+
+<!-- なかま。レベルが上がると増える -->
+<div class="screen hidden" id="screen-chars">
+  <div class="card">
+    <h2>なかま</h2>
+    <div class="wallet">Lv <b id="chars-lv">1</b> <span id="chars-next"></span></div>
+    <p class="lead">走るほどレベルが上がって、なかまが増えます。</p>
+    <div class="char-list" id="char-list"></div>
+    <button class="primary" id="btn-chars-close">とじる</button>
   </div>
 </div>
 
@@ -861,6 +987,11 @@ button {
       <div class="result-score" id="result-score">0</div>
       <div class="earned">🔔 <b id="result-earned">+0</b> <span>手持ち <i id="result-coins">0</i></span></div>
       <div class="verdict" id="result-verdict"></div>
+      <div class="levelbar" id="result-level">
+        <div class="levelbar-row"><b>Lv <span id="result-lv">1</span></b><span id="result-xp">+0</span></div>
+        <div class="xp-track"><div class="xp-fill" id="result-xpfill"></div></div>
+        <div class="levelup" id="result-levelup"></div>
+      </div>
     </div>
     <div class="col">
       <div class="result-grid">
@@ -870,7 +1001,10 @@ button {
         <div><span>ベスト</span><b id="result-best">0</b></div>
       </div>
       <button class="primary" id="btn-retry">もういちど</button>
-      <button class="ghost" id="btn-shop2">そうびを見る</button>
+      <div class="ghost-row">
+        <button class="ghost" id="btn-chars2">🐾 なかま</button>
+        <button class="ghost" id="btn-shop2">🔔 そうび</button>
+      </div>
       <button class="ghost" id="btn-title">タイトルへ</button>
     </div>
   </div>
@@ -1067,6 +1201,166 @@ button {
       return t;
     },
   };
+})(window);
+
+/* ===== src/chars.js ===== */
+/* なかま（キャラクター）とレベル -----------------------------------------------
+   走った距離・拾った鈴・決めた技が経験値になり、レベルが上がると新しい
+   なかまが増える。見た目だけでなく、ひとつずつ得意なことを持たせてある。
+   選ぶ楽しみを作るためで、どれを選んでも極端に有利にはならない範囲。
+
+   見た目は plushie.js に渡す色と形の指定だけで表す。画像は持たない。
+     ears  … 'round'(くま) / 'long'(うさぎ) / 'pointy'(ねこ) / 'none'(とり)
+     face  … 'muzzle'（けもの）/ 'beak'（くちばし）                        */
+(function (global) {
+  'use strict';
+  const SB = global.SB || (global.SB = {});
+  const { store, clamp } = SB.util;
+
+  const CHARS = [
+    {
+      id: 'bear', name: 'くま', unlock: 1,
+      lead: 'バランス型。鈴のコンボが切れにくい',
+      perk: { combo: 0.35 },
+      perkText: 'コンボの猶予 +35%',
+      skin: {
+        ears: 'round', face: 'muzzle',
+        fur: '#e6bd91', furD: '#cfa176', belly: '#f6e7d2', muzzle: '#f8ecd9',
+        earIn: '#f0aeae', hat: '#6fcbbd', hatD: '#4fae9f',
+        scarf: '#e2483f', scarfD: '#b8352d', mitten: '#e2483f', mittenD: '#c96f68',
+        board: '#4a7ce0', boardD: '#2f57ac', boot: '#3b4150', nose: '#5b4034',
+      },
+    },
+    {
+      id: 'rabbit', name: 'うさぎ', unlock: 3,
+      lead: '長い耳とバネの脚。とにかく高く跳ぶ',
+      perk: { jump: 0.14 },
+      perkText: 'ジャンプ力 +14%',
+      skin: {
+        ears: 'long', face: 'muzzle',
+        fur: '#f4f0f4', furD: '#dcd4e0', belly: '#fffdff', muzzle: '#fffafd',
+        earIn: '#f7b6c8', hat: '#ffd166', hatD: '#e0ac3d',
+        scarf: '#7fb4e8', scarfD: '#5b8fc4', mitten: '#7fb4e8', mittenD: '#6ba0d4',
+        board: '#ff8fab', boardD: '#dd6a88', boot: '#55506a', nose: '#c47a8e',
+      },
+    },
+    {
+      id: 'penguin', name: 'ぺんぎん', unlock: 5,
+      lead: '氷の上が本業。素の滑りがいちばん速い',
+      perk: { speed: 1.3 },
+      perkText: '最高速 +1.3 m/s',
+      skin: {
+        ears: 'none', face: 'beak',
+        fur: '#46536b', furD: '#333e52', belly: '#f7fbff', muzzle: '#f7fbff',
+        earIn: '#f7fbff', hat: '#ff6f61', hatD: '#d94f43',
+        scarf: '#ffd166', scarfD: '#e0ac3d', mitten: '#ffb347', mittenD: '#e09a35',
+        board: '#34c6c6', boardD: '#1f9e9e', boot: '#2b3242', nose: '#ffa62b',
+      },
+    },
+    {
+      id: 'cat', name: 'ねこ', unlock: 8,
+      lead: 'ひげが鈴を見つける。遠くの鈴まで吸い寄せる',
+      perk: { magnet: 0.45 },
+      perkText: '鈴の引き寄せ +45%',
+      skin: {
+        ears: 'pointy', face: 'muzzle', whiskers: true,
+        fur: '#b9c2d0', furD: '#9aa5b6', belly: '#f2f5fa', muzzle: '#fbfdff',
+        earIn: '#f2a6b8', hat: '#a68cf0', hatD: '#8670d4',
+        scarf: '#ffd166', scarfD: '#e0ac3d', mitten: '#ffd166', mittenD: '#e0ac3d',
+        board: '#ff7b54', boardD: '#dd5c38', boot: '#3b4150', nose: '#6b5b7a',
+      },
+    },
+    {
+      id: 'panda', name: 'パンダ', unlock: 12,
+      lead: 'もこもこで打たれ強い。ライフがひとつ多い',
+      perk: { heart: 1 },
+      perkText: 'ライフ +1',
+      skin: {
+        ears: 'round', face: 'muzzle',
+        earOuter: '#2c2c34', eyePatch: '#2c2c34',
+        fur: '#f6f4f2', furD: '#e0dcd8', belly: '#ffffff', muzzle: '#ffffff',
+        earIn: '#4a4a52', hat: '#7ed957', hatD: '#5cb63c',
+        scarf: '#e2483f', scarfD: '#b8352d', mitten: '#2c2c34', mittenD: '#45454f',
+        board: '#ffd166', boardD: '#e0ac3d', boot: '#2c2c34', nose: '#2c2c34',
+      },
+    },
+  ];
+
+  const byId = {};
+  for (const c of CHARS) byId[c.id] = c;
+
+  const MAX_LEVEL = 30;
+
+  const Chars = {
+    list: CHARS,
+    maxLevel: MAX_LEVEL,
+    level: 1,
+    xp: 0,          // 今のレベルの中での経験値
+    selected: 'bear',
+
+    /* 次のレベルまでに必要な経験値。1走りでだいたい 400〜900 くらい入るので、
+       うさぎが2走りめ、ぺんぎんが4走りめ、パンダが15走りめあたりで来る。 */
+    need(lv) { return 380 + (Math.max(1, lv) - 1) * 60; },
+
+    get(id) { return byId[id] || CHARS[0]; },
+    current() { return this.get(this.selected); },
+    unlocked(def) { return this.level >= def.unlock; },
+
+    /* 選んでいるなかまの得意なこと。持っていない項目は 0 */
+    perk(key) {
+      const p = this.current().perk || {};
+      return p[key] || 0;
+    },
+
+    load() {
+      this.level = clamp(Math.floor(Number(store.get('sb_level', 1)) || 1), 1, MAX_LEVEL);
+      this.xp = Math.max(0, Number(store.get('sb_xp', 0)) || 0);
+      const sel = store.get('sb_char', 'bear');
+      // 保存が壊れていたり、まだ仲間になっていない子が入っていたらくまへ戻す
+      this.selected = byId[sel] && this.level >= byId[sel].unlock ? sel : 'bear';
+      return this;
+    },
+
+    save() {
+      store.set('sb_level', this.level);
+      store.set('sb_xp', Math.floor(this.xp));
+      store.set('sb_char', this.selected);
+    },
+
+    select(id) {
+      const def = byId[id];
+      if (!def || !this.unlocked(def)) return false;
+      this.selected = id;
+      this.save();
+      return true;
+    },
+
+    /* 走り終わりに経験値を足す。上がったレベルと、新しく増えたなかまを返す */
+    addXp(n) {
+      const gained = Math.max(0, Math.floor(n));
+      const before = this.level;
+      this.xp += gained;
+      while (this.level < MAX_LEVEL && this.xp >= this.need(this.level)) {
+        this.xp -= this.need(this.level);
+        this.level++;
+      }
+      if (this.level >= MAX_LEVEL) this.xp = Math.min(this.xp, this.need(MAX_LEVEL));
+      this.save();
+      return {
+        gained,
+        levels: this.level - before,
+        joined: CHARS.filter((c) => c.unlock > before && c.unlock <= this.level),
+      };
+    },
+
+    // 開発用。コンソールから SB.chars.reset() でやり直せる
+    reset() {
+      this.level = 1; this.xp = 0; this.selected = 'bear';
+      this.save();
+    },
+  };
+
+  SB.chars = Chars.load();
 })(window);
 
 /* ===== src/shop.js ===== */
@@ -3012,20 +3306,32 @@ button {
   const SB = global.SB || (global.SB = {});
   const { clamp, lerp, roundRect, ellipse, rgba, TAU } = SB.util;
 
-  /* 見た目一式。ライバルには別の組み合わせを渡す */
+  /* 見た目一式。なかまの色と形は chars.js が持っていて、ここへ渡ってくる。
+     ここに残しているのは、渡されなかったときの既定と、なかまには居ない
+     特別な相手のぶん。 */
   const SKINS = {
     bear: {
+      ears: 'round', face: 'muzzle',
       fur: '#e6bd91', furD: '#cfa176', belly: '#f6e7d2', muzzle: '#f8ecd9',
       earIn: '#f0aeae', hat: '#6fcbbd', hatD: '#4fae9f',
       scarf: '#e2483f', scarfD: '#b8352d', mitten: '#e2483f', mittenD: '#c96f68',
       board: '#4a7ce0', boardD: '#2f57ac', boot: '#3b4150', nose: '#5b4034',
     },
-    // ライバル。ひと目で見分けられるよう色相をずらす
+    // ふつうのライバル。なかまの誰とも重ならない色にしてある
     rival: {
+      ears: 'round', face: 'muzzle',
       fur: '#d8d3e8', furD: '#bdb6d4', belly: '#f2eff8', muzzle: '#faf7ff',
       earIn: '#e8aecb', hat: '#f2a2bf', hatD: '#d97fa2',
       scarf: '#5cc2b4', scarfD: '#3f9d90', mitten: '#5cc2b4', mittenD: '#4aa79a',
       board: '#f2b23c', boardD: '#c98a1c', boot: '#4a4358', nose: '#5a4a63',
+    },
+    // とても強い相手。黒と金で、遠くからでも「あ、あいつだ」と分かる
+    ace: {
+      ears: 'pointy', face: 'muzzle', whiskers: true,
+      fur: '#5b5470', furD: '#443f56', belly: '#d9d2ea', muzzle: '#e7e1f4',
+      earIn: '#b9a0e0', hat: '#1f2430', hatD: '#12161f',
+      scarf: '#ffc93c', scarfD: '#e0a91c', mitten: '#ffc93c', mittenD: '#e0a91c',
+      board: '#151a26', boardD: '#05070c', boot: '#1a1f2b', nose: '#2b2536',
     },
   };
 
@@ -3215,13 +3521,44 @@ button {
     ctx.rotate(headTilt);
     ctx.scale(headFix, 1);                  // ここから先だけ頭の向きになる
 
-    // 耳
+    // 耳。種類ごとに形を変える（ここがいちばん見分けのつくところ）
+    const earOuter = S.earOuter || S.furD;
     for (const side of [-1, 1]) {
-      ctx.fillStyle = S.furD;
-      ellipse(ctx, side * 0.235, -0.20, 0.105, 0.105); ctx.fill();
-      if (headFacing > 0) {
-        ctx.fillStyle = S.earIn;
-        ellipse(ctx, side * 0.245, -0.20, 0.055, 0.055); ctx.fill();
+      if (S.ears === 'none') break;
+      if (S.ears === 'long') {
+        // うさぎ。外へ少し倒した細長い耳
+        ctx.save();
+        ctx.translate(side * 0.15, -0.20);
+        ctx.rotate(side * 0.2);
+        ctx.fillStyle = earOuter;
+        ellipse(ctx, 0, -0.22, 0.085, 0.26); ctx.fill();
+        if (headFacing > 0) {
+          ctx.fillStyle = S.earIn;
+          ellipse(ctx, 0, -0.22, 0.046, 0.20); ctx.fill();
+        }
+        ctx.restore();
+      } else if (S.ears === 'pointy') {
+        // ねこ。三角の耳
+        const bx = side * 0.13, tx = side * 0.33;
+        ctx.fillStyle = earOuter;
+        ctx.beginPath();
+        ctx.moveTo(bx, -0.17); ctx.lineTo(tx, -0.16); ctx.lineTo(side * 0.27, -0.44);
+        ctx.closePath(); ctx.fill();
+        if (headFacing > 0) {
+          ctx.fillStyle = S.earIn;
+          ctx.beginPath();
+          ctx.moveTo(bx + side * 0.045, -0.19); ctx.lineTo(tx - side * 0.03, -0.185);
+          ctx.lineTo(side * 0.26, -0.36);
+          ctx.closePath(); ctx.fill();
+        }
+      } else {
+        // くま・パンダ。丸い耳
+        ctx.fillStyle = earOuter;
+        ellipse(ctx, side * 0.235, -0.20, 0.105, 0.105); ctx.fill();
+        if (headFacing > 0) {
+          ctx.fillStyle = S.earIn;
+          ellipse(ctx, side * 0.245, -0.20, 0.055, 0.055); ctx.fill();
+        }
       }
     }
     // 顔の輪郭
@@ -3229,47 +3566,98 @@ button {
     ellipse(ctx, 0, 0, 0.30, 0.285); ctx.fill();
 
     if (headFacing > 0) {
-      // マズル
-      ctx.fillStyle = S.muzzle;
-      ellipse(ctx, 0, 0.10, 0.16, 0.115); ctx.fill();
-      // 鼻と口
-      ctx.fillStyle = S.nose;
-      ctx.beginPath();
-      ctx.moveTo(-0.045, 0.045); ctx.lineTo(0.045, 0.045); ctx.lineTo(0, 0.10);
-      ctx.closePath(); ctx.fill();
-      ctx.strokeStyle = S.nose;
-      ctx.lineWidth = 0.016;
-      ctx.beginPath();
-      ctx.moveTo(0, 0.10); ctx.lineTo(0, 0.135);
-      ctx.moveTo(0, 0.135); ctx.quadraticCurveTo(-0.05, 0.175, -0.085, 0.13);
-      ctx.moveTo(0, 0.135); ctx.quadraticCurveTo(0.05, 0.175, 0.085, 0.13);
-      ctx.stroke();
+      const beak = S.face === 'beak';
+      if (beak) {
+        // とり。顔の下半分が白く、真ん中にくちばし
+        ctx.fillStyle = S.muzzle;
+        ellipse(ctx, 0, 0.045, 0.215, 0.215); ctx.fill();
+        ctx.fillStyle = S.nose;
+        ctx.beginPath();
+        ctx.moveTo(-0.085, 0.055); ctx.lineTo(0.085, 0.055); ctx.lineTo(0, 0.175);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+        ctx.lineWidth = 0.014;
+        ctx.beginPath();
+        ctx.moveTo(-0.06, 0.088); ctx.lineTo(0.06, 0.088);
+        ctx.stroke();
+      } else {
+        // マズル
+        ctx.fillStyle = S.muzzle;
+        ellipse(ctx, 0, 0.10, 0.16, 0.115); ctx.fill();
+        // 鼻と口
+        ctx.fillStyle = S.nose;
+        ctx.beginPath();
+        ctx.moveTo(-0.045, 0.045); ctx.lineTo(0.045, 0.045); ctx.lineTo(0, 0.10);
+        ctx.closePath(); ctx.fill();
+        ctx.strokeStyle = S.nose;
+        ctx.lineWidth = 0.016;
+        ctx.beginPath();
+        ctx.moveTo(0, 0.10); ctx.lineTo(0, 0.135);
+        ctx.moveTo(0, 0.135); ctx.quadraticCurveTo(-0.05, 0.175, -0.085, 0.13);
+        ctx.moveTo(0, 0.135); ctx.quadraticCurveTo(0.05, 0.175, 0.085, 0.13);
+        ctx.stroke();
+        if (S.whiskers) {
+          ctx.strokeStyle = rgba(S.nose, 0.5);
+          ctx.lineWidth = 0.012;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          for (const side of [-1, 1]) {
+            for (const dy of [-0.02, 0.012, 0.045]) {
+              ctx.moveTo(side * 0.15, 0.09 + dy * 0.4);
+              ctx.lineTo(side * 0.34, 0.06 + dy);
+            }
+          }
+          ctx.stroke();
+        }
+      }
+      // 目のまわりの模様（パンダ）。目より先に敷く
+      if (S.eyePatch) {
+        ctx.fillStyle = S.eyePatch;
+        for (const side of [-1, 1]) {
+          ctx.save();
+          ctx.translate(side * 0.135, -0.025);
+          ctx.rotate(side * 0.4);
+          ellipse(ctx, 0, 0, 0.085, 0.11); ctx.fill();
+          ctx.restore();
+        }
+      }
       // 目（まばたき／転倒時は ×）
       const open = crash ? 0 : (st.blink === undefined ? 1 : st.blink);
+      const eyeInk = S.eyePatch ? '#2c2c34' : S.nose;
       for (const side of [-1, 1]) {
         const ex = side * 0.125, ey = -0.02;
         if (crash) {
-          ctx.strokeStyle = S.nose; ctx.lineWidth = 0.024;
+          ctx.strokeStyle = eyeInk; ctx.lineWidth = 0.024;
           ctx.beginPath();
           ctx.moveTo(ex - 0.04, ey - 0.04); ctx.lineTo(ex + 0.04, ey + 0.04);
           ctx.moveTo(ex + 0.04, ey - 0.04); ctx.lineTo(ex - 0.04, ey + 0.04);
           ctx.stroke();
         } else if (open > 0.15) {
-          ctx.fillStyle = S.nose;
-          ellipse(ctx, ex, ey, 0.045, 0.052 * open); ctx.fill();
-          ctx.fillStyle = 'rgba(255,255,255,0.95)';
-          ellipse(ctx, ex - 0.016, ey - 0.020 * open, 0.017, 0.017 * open); ctx.fill();
+          // 黒い模様の上では、白目を敷かないと目が消える
+          if (S.eyePatch) {
+            ctx.fillStyle = '#ffffff';
+            ellipse(ctx, ex, ey, 0.048, 0.055 * open); ctx.fill();
+            ctx.fillStyle = eyeInk;
+            ellipse(ctx, ex, ey, 0.028, 0.034 * open); ctx.fill();
+          } else {
+            ctx.fillStyle = eyeInk;
+            ellipse(ctx, ex, ey, 0.045, 0.052 * open); ctx.fill();
+            ctx.fillStyle = 'rgba(255,255,255,0.95)';
+            ellipse(ctx, ex - 0.016, ey - 0.020 * open, 0.017, 0.017 * open); ctx.fill();
+          }
         } else {
-          ctx.strokeStyle = S.nose; ctx.lineWidth = 0.022; ctx.lineCap = 'round';
+          ctx.strokeStyle = eyeInk; ctx.lineWidth = 0.022; ctx.lineCap = 'round';
           ctx.beginPath();
           ctx.moveTo(ex - 0.045, ey); ctx.quadraticCurveTo(ex, ey + 0.03, ex + 0.045, ey);
           ctx.stroke();
         }
       }
-      // ほっぺ
-      ctx.fillStyle = 'rgba(240,150,150,0.55)';
-      ellipse(ctx, -0.20, 0.07, 0.055, 0.038); ctx.fill();
-      ellipse(ctx, 0.20, 0.07, 0.055, 0.038); ctx.fill();
+      // ほっぺ。黒い模様やくちばしの子には要らない
+      if (!S.eyePatch && !beak) {
+        ctx.fillStyle = 'rgba(240,150,150,0.55)';
+        ellipse(ctx, -0.20, 0.07, 0.055, 0.038); ctx.fill();
+        ellipse(ctx, 0.20, 0.07, 0.055, 0.038); ctx.fill();
+      }
     } else {
       // 後頭部の縫い目
       ctx.strokeStyle = rgba(S.furD, 0.85);
@@ -3355,13 +3743,32 @@ button {
   const C = SB.C;
 
   const NAMES = ['ももちゃん', 'ゆきちゃん', 'こむぎ', 'あられ', 'きなこ'];
+  // 5回に1回くらい出てくる、とても強い相手。名前も見た目も別格にしてある
+  const ACES = ['ゆきおう', 'かみなり', 'ふぶき'];
+  const ACE_CHANCE = 0.22;
 
   class Rival {
     constructor() { this.reset(); }
 
     reset() {
-      this.name = NAMES[Math.floor(Math.random() * NAMES.length)];
-      this.z = 9;               // 少し前からスタートして、追う気持ちを作る
+      this.ace = Math.random() < ACE_CHANCE;
+      this.name = this.ace
+        ? ACES[Math.floor(Math.random() * ACES.length)]
+        : NAMES[Math.floor(Math.random() * NAMES.length)];
+      /* 見た目。ふつうの相手は毎回ちがうなかまの姿で滑ってくる（自分と
+         同じ姿は選ばない）。強い相手は専用の黒と金。 */
+      if (this.ace) {
+        this.skin = SB.plushieSkins.ace;
+      } else if (SB.chars) {
+        const mine = SB.chars.selected;
+        const pool = SB.chars.list.filter((c) => c.id !== mine);
+        this.skin = pool.length
+          ? pool[Math.floor(Math.random() * pool.length)].skin
+          : SB.plushieSkins.rival;
+      } else {
+        this.skin = SB.plushieSkins.rival;
+      }
+      this.z = this.ace ? 14 : 9;   // 少し前からスタートして、追う気持ちを作る
       this.x = 2.4;
       this.vx = 0;
       this.speed = 14;
@@ -3419,12 +3826,16 @@ button {
          したりすれば前に出られる。逆に転べば置いていかれる。
          そのうえで、離れすぎたぶんだけゴムひものように寄せる。 */
       const gap = this.z - player.z;
-      const base = 13.0 + difficulty * 12.6;
+      /* 強い相手は素の速さが上、手加減の幅は小さく、追い上げは強い。
+         しゃがみ続けるだけでは足りず、ブーストを溜めて使う必要が出る。 */
+      const base = this.ace ? 16.2 + difficulty * 13.6 : 13.0 + difficulty * 12.6;
       let target = base;
-      if (gap > 30) target -= Math.min(8, (gap - 30) * 0.22);   // 前に出すぎたら緩める
-      if (gap < -30) target += Math.min(6, (-gap - 30) * 0.16); // 離されたら少し本気
+      const ease = this.ace ? 4 : 8;
+      const chase = this.ace ? 9 : 6;
+      if (gap > 30) target -= Math.min(ease, (gap - 30) * 0.22);   // 前に出すぎたら緩める
+      if (gap < -30) target += Math.min(chase, (-gap - 30) * 0.16); // 離されたら本気
       // プレイヤーが転んでいる間は少しだけ待ってあげる（置き去りにしない）
-      if (player.crash > 0) target = Math.min(target, player.speed + 8);
+      if (player.crash > 0) target = Math.min(target, player.speed + (this.ace ? 12 : 8));
       this.speed = damp(this.speed, Math.max(6, target), 1.4, dt);
       this.z += this.speed * dt;
 
@@ -3480,7 +3891,7 @@ button {
       ctx.save();
       ctx.globalAlpha = fade;
       SB.drawPlushie(ctx, rider.x, rider.y, rider.s, {
-        skin: SB.plushieSkins.rival,
+        skin: this.skin,
         lean: this.lean,
         spin: 0,
         air: this.air,
@@ -3497,15 +3908,16 @@ button {
 
       // 名札。誰と競っているのか分かるように、頭の上に小さく出す
       const size = clamp(rider.s * 0.2, 9, 22);
+      const label = this.ace ? `★ ${this.name}` : this.name;
       ctx.save();
       ctx.font = `800 ${size}px system-ui, sans-serif`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'bottom';
       ctx.lineWidth = size * 0.22;
       ctx.strokeStyle = 'rgba(24,48,84,0.45)';
-      ctx.strokeText(this.name, rider.x, rider.y - rider.s * 1.75);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(this.name, rider.x, rider.y - rider.s * 1.75);
+      ctx.strokeText(label, rider.x, rider.y - rider.s * 1.75);
+      ctx.fillStyle = this.ace ? '#ffd25e' : '#ffffff';
+      ctx.fillText(label, rider.x, rider.y - rider.s * 1.75);
       ctx.restore();
 
       ctx.restore();
@@ -3566,7 +3978,7 @@ button {
       this.trick = null;
       if (this.rival) this.rival.reset();
       this.rivalLead = false;    // 直前フレームで相手より前にいたか
-      this.magnetRange = 3.2 * (1 + SB.shop.lv('magnet') * 0.35);
+      this.magnetRange = 3.2 * (1 + SB.shop.lv('magnet') * 0.35 + SB.chars.perk('magnet'));
       this.boostGain = 1 + SB.shop.lv('boost') * 0.30;
       this.demo = !!demo;
       this.p = {
@@ -3582,7 +3994,7 @@ button {
       this.comboTimer = 0;
       this.bells = 0;
       this.tricks = 0;
-      this.maxHearts = BASE_HEARTS + SB.shop.lv('heart');
+      this.maxHearts = BASE_HEARTS + SB.shop.lv('heart') + SB.chars.perk('heart');
       this.hearts = this.maxHearts;
       this.boost = 0;          // 0..100 のゲージ
       this.boostTime = 0;
@@ -3604,16 +4016,26 @@ button {
 
     gameOver() {
       this.state = 'over';
-      const earned = Math.floor(this.bells);
+      const rivalGap = this.distance - this.rival.z;
+      // 強い相手に勝てたときは、それだけで鈴がひとつかみ増える
+      const bonus = rivalGap >= 0 ? (this.rival.ace ? 60 : 15) : 0;
+      const earned = Math.floor(this.bells) + bonus;
       SB.shop.addCoins(earned);
+
+      /* 経験値。距離をそのまま、拾った鈴と決めた技を上乗せする。
+         「走りきった」だけでも必ず増えるようにしてある。 */
+      const xp = Math.floor(this.distance + this.bells * 8 + this.tricks * 12 + bonus * 2);
+      const grew = SB.chars.addXp(xp);
+
       const isBest = this.score > this.best;
       if (isBest) { this.best = this.score; store.set('sb_best', Math.floor(this.score)); }
       if (this.distance > this.bestDist) { this.bestDist = this.distance; store.set('sb_bestdist', Math.floor(this.distance)); }
       this.ui.showResult({
         score: this.score, distance: this.distance, bells: this.bells,
         tricks: this.tricks, best: this.best, isBest,
-        earned, coins: SB.shop.coins,
-        rivalName: this.rival.name, rivalGap: this.distance - this.rival.z,
+        earned, bonus, coins: SB.shop.coins,
+        rivalName: this.rival.name, rivalGap, rivalAce: this.rival.ace,
+        xp: grew,
       });
       this.ui.setHud(false);
     }
@@ -3644,7 +4066,17 @@ button {
 
       if (this.state === 'ready') {
         this.readyTimer -= dt;
-        if (this.readyTimer <= 0) { this.state = 'run'; this.startedAt = this.t; }
+        if (this.readyTimer <= 0) {
+          this.state = 'run';
+          this.startedAt = this.t;
+          // 誰と走るのかを最初に伝える。強い相手のときは特に
+          if (!this.demo) {
+            this.popup(
+              this.rival.ace ? `★ ${this.rival.name} だ！` : `${this.rival.name}と きょうそう`,
+              this.rival.ace ? '#ffd25e' : '#ffffff'
+            );
+          }
+        }
       }
 
       /* 入力 */
@@ -3663,7 +4095,7 @@ button {
       /* 速度 */
       const diffRamp = clamp(p.z / 2200, 0, 1);
       const offPiste = Math.abs(p.x) > C.PISTE_HALF;
-      let target = 13 + diffRamp * 13 + SB.shop.lv('speed') * 1.6;
+      let target = 13 + diffRamp * 13 + SB.shop.lv('speed') * 1.6 + SB.chars.perk('speed');
       if (this.demo) target = 11;
       if (tuck) target += 6;
       if (offPiste) target -= 7.5;
@@ -3815,7 +4247,7 @@ button {
         this.ui.updateHud({
           score: this.score, distance: this.distance, speed: p.speed * 3.6,
           combo: this.combo, hearts: this.hearts, maxHearts: this.maxHearts, boost: this.boost,
-          rivalName: this.rival.name, rivalGap: this.rival.z - p.z,
+          rivalName: this.rival.name, rivalGap: this.rival.z - p.z, rivalAce: this.rival.ace,
           boosting: this.boostTime > 0,
         });
       }
@@ -3824,7 +4256,7 @@ button {
     jump() {
       const p = this.p;
       p.air = true;
-      p.vy = (7.2 + p.speed * 0.07) * (1 + SB.shop.lv('jump') * 0.11);
+      p.vy = (7.2 + p.speed * 0.07) * (1 + SB.shop.lv('jump') * 0.11 + SB.chars.perk('jump'));
       p.airTime = 0;
       p.grabbed = 0;
       p.squash = 1.12;
@@ -3901,7 +4333,7 @@ button {
 
     bumpCombo() {
       this.combo++;
-      this.comboTimer = 3.2;
+      this.comboTimer = 3.2 * (1 + SB.chars.perk('combo'));
     }
 
     addScore(n) { this.score += n; }
@@ -3976,7 +4408,7 @@ button {
           if (Math.abs(dz) < Math.max(1.6, reach) && Math.abs(o.x - p.x) < 2.6 && !p.air) {
             o.used = true;
             p.air = true;
-            p.vy = (9.5 + p.speed * 0.1) * (1 + SB.shop.lv('jump') * 0.11);
+            p.vy = (9.5 + p.speed * 0.1) * (1 + SB.shop.lv('jump') * 0.11 + SB.chars.perk('jump'));
             p.airTime = 0;
             p.grabbed = 0;
             p.squash = 1.2;
@@ -4250,6 +4682,7 @@ button {
         crash: p.crash > 0 ? 1 : 0,
         crashRot: p.crashRot,
         look: p.look,
+        skin: SB.chars.current().skin,
         pose: this.trick ? this.trick.pose : null,
         poseMix: p.poseMix,
         t: this.t,
@@ -4359,6 +4792,12 @@ button {
     titleCoins: $('title-coins'), resultEarned: $('result-earned'), resultCoins: $('result-coins'),
     versus: $('versus'), versusName: $('versus-name'), versusGap: $('versus-gap'),
     verdict: $('result-verdict'),
+    chars: $('screen-chars'), charList: $('char-list'),
+    charsLv: $('chars-lv'), charsNext: $('chars-next'),
+    titleLv: $('title-lv'), titleXp: $('title-xp'), titleXpFill: $('title-xpfill'),
+    titleChar: $('title-char'),
+    resultLv: $('result-lv'), resultXp: $('result-xp'),
+    resultXpFill: $('result-xpfill'), resultLevelup: $('result-levelup'),
   };
 
   /* --- UI ------------------------------------------------------------ */
@@ -4369,7 +4808,7 @@ button {
     _lastHearts: -1,
 
     setScreen(name) {
-      for (const key of ['title', 'pause', 'result', 'shop']) {
+      for (const key of ['title', 'pause', 'result', 'shop', 'chars']) {
         els[key].classList.toggle('hidden', key !== name);
       }
     },
@@ -4403,7 +4842,8 @@ button {
       if (d.rivalName !== undefined) {
         const ahead = d.rivalGap < 0;           // 相手が後ろ＝こちらがリード
         const m = Math.round(Math.abs(d.rivalGap));
-        els.versusName.textContent = d.rivalName;
+        els.versusName.textContent = d.rivalAce ? `★ ${d.rivalName}` : d.rivalName;
+        els.versus.classList.toggle('ace', !!d.rivalAce);
         els.versusGap.textContent = ahead ? `${m}m リード` : `${m}m うしろ`;
         els.versus.classList.toggle('ahead', ahead);
       }
@@ -4426,10 +4866,24 @@ button {
       els.resultCoins.textContent = fmt(r.coins);
 
       const gap = Math.round(r.rivalGap);
+      const who = r.rivalAce ? `★${r.rivalName}` : r.rivalName;
       els.verdict.textContent = gap >= 0
-        ? `🏆 ${r.rivalName}に ${fmt(gap)}m 差で かち！`
-        : `${r.rivalName}に ${fmt(-gap)}m 差で まけ…`;
+        ? `🏆 ${who}に ${fmt(gap)}m 差で かち！${r.bonus ? ` 🔔+${r.bonus}` : ''}`
+        : `${who}に ${fmt(-gap)}m 差で まけ…`;
       els.verdict.classList.toggle('win', gap >= 0);
+      els.verdict.classList.toggle('ace', !!r.rivalAce);
+
+      // 経験値。上がったぶんは文章で出す（棒だけだと気づかれない）
+      const ch = SB.chars;
+      els.resultLv.textContent = ch.level;
+      els.resultXp.textContent = `+${fmt(r.xp.gained)}`;
+      els.resultXpFill.style.width = `${clamp(ch.xp / ch.need(ch.level) * 100, 0, 100)}%`;
+      const lines = [];
+      if (r.xp.levels > 0) lines.push(`レベルアップ！ Lv ${ch.level}`);
+      for (const c of r.xp.joined) lines.push(`🎉 ${c.name}が なかまに なった！`);
+      els.resultLevelup.textContent = lines.join('\n');
+      els.resultLevelup.classList.toggle('show', lines.length > 0);
+
       this.setScreen('result');
     },
 
@@ -4490,6 +4944,71 @@ button {
       }
     },
 
+    /* なかま一覧。まだ増えていない子も、どのレベルで来るかを見せておく */
+    renderChars() {
+      const ch = SB.chars;
+      els.charsLv.textContent = ch.level;
+      const next = ch.list.find((c) => c.unlock > ch.level);
+      els.charsNext.textContent = next ? `Lv ${next.unlock} で ${next.name}` : 'ぜんいん そろった！';
+      els.charList.innerHTML = '';
+
+      for (const def of ch.list) {
+        const open = ch.unlocked(def);
+        const row = document.createElement('button');
+        row.className = 'char-item'
+          + (open ? '' : ' locked')
+          + (def.id === ch.selected ? ' on' : '');
+        row.disabled = !open;
+
+        // 見た目はゲーム中とまったく同じ描画関数で出す
+        const cv = document.createElement('canvas');
+        cv.className = 'char-face';
+        cv.width = 132; cv.height = 132;
+        const c = cv.getContext('2d');
+        c.save();
+        if (!open) c.globalAlpha = 0.25;
+        // 全身が枠いっぱいに入る位置。マフラーが左へ伸びるぶん右に寄せる
+        SB.drawPlushie(c, 74, 112, 64, {
+          skin: def.skin, lean: 0, spin: 0, air: false, look: 1,
+          tuck: 0, crash: 0, t: 0.4, blink: 1, squash: 1,
+          speedRatio: 0, hideShadow: true,
+        });
+        c.restore();
+
+        const mid = document.createElement('div');
+        const name = document.createElement('div');
+        name.className = 'char-name';
+        name.textContent = def.name;   // 名前は先に見せる（楽しみになるので）
+        const eff = document.createElement('div');
+        eff.className = 'char-effect';
+        eff.textContent = open ? def.lead : `Lv ${def.unlock} で なかまに なる`;
+        const perk = document.createElement('div');
+        perk.className = 'char-perk';
+        perk.textContent = open ? def.perkText : '';
+        mid.append(name, eff, perk);
+
+        row.append(cv, mid);
+        if (open) {
+          row.addEventListener('click', () => {
+            if (!ch.select(def.id)) return;
+            SB.audio.resume();
+            SB.audio.ui();
+            this.renderChars();
+            this.refreshTitleLevel();
+          });
+        }
+        els.charList.appendChild(row);
+      }
+    },
+
+    refreshTitleLevel() {
+      const ch = SB.chars;
+      els.titleLv.textContent = ch.level;
+      els.titleXp.textContent = `${fmt(ch.xp)} / ${fmt(ch.need(ch.level))}`;
+      els.titleXpFill.style.width = `${clamp(ch.xp / ch.need(ch.level) * 100, 0, 100)}%`;
+      els.titleChar.textContent = ch.current().name;
+    },
+
     refreshTitleBest(game) {
       els.titleBest.textContent = game.best > 0
         ? `ベスト ${fmt(game.best)} 点 / ${fmt(game.bestDist)} m`
@@ -4506,6 +5025,7 @@ button {
 
   SB.audio.setEnabled(ui.sound);
   ui.refreshTitleBest(game);
+  ui.refreshTitleLevel();
   ui.renderShop();
   ui.setScreen('title');
   ui.setHud(false);
@@ -4526,6 +5046,9 @@ button {
   tap($('btn-pause'), () => game.togglePause());
   tap($('btn-resume'), () => game.togglePause());
   tap($('btn-quit'), () => backToTitle());
+  tap($('btn-chars'), () => { ui.renderChars(); ui.setScreen('chars'); });
+  tap($('btn-chars2'), () => { ui.renderChars(); ui.setScreen('chars'); });
+  tap($('btn-chars-close'), () => backToTitle());
   tap($('btn-shop'), () => { ui.renderShop(); ui.setScreen('shop'); });
   tap($('btn-shop2'), () => { ui.renderShop(); ui.setScreen('shop'); });
   tap($('btn-shop-close'), () => backToTitle());
@@ -4536,6 +5059,7 @@ button {
     game.reset(true);          // 買った装備を次の走りへ反映させる
     game.state = 'title';
     ui.refreshTitleBest(game);
+    ui.refreshTitleLevel();
     ui.renderShop();
     ui.setScreen('title');
     ui.setHud(false);
